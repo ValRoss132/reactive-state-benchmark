@@ -1,73 +1,108 @@
-# React + TypeScript + Vite
+# Reactive State Benchmark
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Практическое решение для темы ВКР:
+**"Исследование парадигмы реактивного программирования для управления состоянием в веб-приложениях"**.
 
-Currently, two official plugins are available:
+Проект представляет собой интерактивный веб-стенд для бенчмарка подходов к управлению состоянием:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Redux Toolkit
+- Zustand
+- MobX
+- Recoil
 
-## React Compiler
+Результат оформлен в виде:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- веб-приложения для запуска и фиксации измерений,
+- Docker-образа и `docker-compose` для воспроизводимого развёртывания,
+- CI/CD-конвейера в GitHub Actions,
+- инструкции для проверки и включения в итоговый отчёт по практике.
 
-## Expanding the ESLint configuration
+## Связка с этапами практики
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+1. Проектирование развёртывания:
+   - выбран сценарий веб-стенда на React + TypeScript;
+   - развёртывание через Docker и Nginx.
+2. Процесс тестирования / бенчмаркинга:
+   - в UI задаётся количество итераций;
+   - выполняется серия одинаковых операций обновления состояния;
+   - выводится время выполнения и `ops/s` для каждого менеджера.
+3. Оформление результата в виде образов:
+   - `Dockerfile` для production-сборки и запуска.
+4. Поставка в CI/CD:
+   - workflow `.github/workflows/ci.yml` запускает `lint`, `typecheck`, `build`.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Быстрый старт (локально)
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+Требования:
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- Node.js 22+
+- pnpm 10+
+
+Команды:
+
+```bash
+pnpm install
+pnpm dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Приложение откроется по адресу `http://localhost:5173`.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Запуск бенчмарка
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+1. Открой интерфейс стенда.
+2. Укажи `Iterations per manager`.
+3. Нажми `Run benchmark`.
+4. Зафиксируй таблицу результатов (elapsed, ops/s) для отчёта.
+
+Рекомендация для отчёта:
+
+- сделать 3-5 прогонов на одинаковом числе итераций;
+- взять среднее значение по каждому менеджеру.
+
+## Docker-развёртывание
+
+### Вариант 1: Docker Compose
+
+```bash
+docker compose up --build
 ```
+
+Стенд будет доступен: `http://localhost:8080`.
+
+### Вариант 2: Docker CLI
+
+```bash
+docker build -t reactive-state-benchmark:latest .
+docker run --rm -p 8080:80 reactive-state-benchmark:latest
+```
+
+## CI/CD
+
+Workflow: `.github/workflows/ci.yml`
+
+Что выполняется на `push` и `pull_request`:
+
+1. Установка зависимостей `pnpm install --frozen-lockfile`
+2. Проверка качества `pnpm run ci`, где:
+   - `pnpm lint`
+   - `pnpm typecheck`
+   - `pnpm build`
+
+## Команды проекта
+
+```bash
+pnpm dev         # запуск в dev-режиме
+pnpm lint        # ESLint
+pnpm typecheck   # проверка TypeScript
+pnpm build       # production-сборка
+pnpm run ci      # полный пайплайн локально (как в CI)
+pnpm preview     # предпросмотр production-сборки
+```
+
+## Что приложить в итоговый отчёт
+
+1. Скриншот работающего стенда с адресом (`localhost:5173` или публичный URL).
+2. Скриншоты таблицы бенчмарка минимум для 3 прогонов.
+3. Скриншот успешного GitHub Actions workflow.
+4. Скриншот запуска контейнера (`docker compose up --build`).
+5. Краткое обоснование выбранного подхода CI/CD и контейнеризации.
