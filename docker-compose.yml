@@ -1,0 +1,9 @@
+services:
+  reactive-state-benchmark:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: reactive-state-benchmark
+    ports:
+      - '8080:80'
+    restart: unless-stopped
