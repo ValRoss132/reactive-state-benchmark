@@ -50,7 +50,9 @@ export const MobXAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 		mobxStore.updateItem(payload)
 	},
 
-	peek: () => mobxStore.items[0].value,
+	peek: () => {
+		return mobxStore.items.length > 0 ? mobxStore.items[0].value : null
+	},
 
 	Subscriber: MobXSubscriber,
 

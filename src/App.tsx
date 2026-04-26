@@ -39,7 +39,7 @@ export const App = () => {
 		// Теперь Engine возвращает не массив, а структурированный FullReport
 		const finalReport = await BenchmarkEngine.runSingle(
 			currentAdapter,
-			WideUpdateScenario,
+			currentScenario,
 			(idx) => setProgress(idx),
 		)
 
@@ -48,10 +48,13 @@ export const App = () => {
 	}
 
 	const subscribers = useMemo(() => {
-		return WideUpdateScenario.initialState.items.map((item) => (
+		const items = (currentScenario.initialState as any).items as {
+			id: string
+		}[]
+		return items.map((item) => (
 			<currentAdapter.Subscriber key={item.id} id={item.id} />
 		))
-	}, [currentAdapter])
+	}, [currentAdapter, currentScenario])
 
 	const renderWithProvider = (content: React.ReactNode) => {
 		if (currentAdapter.name === 'Redux Toolkit') {

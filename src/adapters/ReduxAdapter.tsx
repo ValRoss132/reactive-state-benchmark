@@ -48,7 +48,9 @@ export const ReduxAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 	},
 
 	peek: () => {
-		return store.getState().wide.items[0].value
+		const state = store.getState()
+		const items = state.wide.items
+		return items.length > 0 ? items[0].value : null
 	},
 
 	Subscriber: ({ id }) => {

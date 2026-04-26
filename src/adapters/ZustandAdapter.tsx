@@ -46,7 +46,8 @@ export const ZustandAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 	},
 
 	peek: () => {
-		return useStore.getState().items[0].value
+		const items = useStore.getState().items
+		return items.length > 0 ? items[0].value : null
 	},
 
 	Subscriber: ({ id }) => {

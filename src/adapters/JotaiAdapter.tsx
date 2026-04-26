@@ -1,4 +1,3 @@
-import React from 'react'
 import { atom, createStore, useAtomValue } from 'jotai'
 import type { StateAdapter } from '../core/types'
 import type { BenchmarkPayload, WideState } from '../core/types'
@@ -38,12 +37,13 @@ export const JotaiAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 	},
 
 	peek: () => {
-		const firstAtom = itemAtoms.get('0')
-		if (!firstAtom) return 0
-		return firstAtom ? benchmarkStore.get(firstAtom) : 0
+		const firstId = Array.from(itemAtoms.keys())[0]
+		if (!firstId) return null
+		const firstAtom = itemAtoms.get(firstId)
+		return firstAtom ? benchmarkStore.get(firstAtom) : null
 	},
 
-	Subscriber: React.memo(({ id }) => {
+	Subscriber: ({ id }) => {
 		const atomRef = itemAtoms.get(id)
 
 		if (!atomRef) {
@@ -51,7 +51,7 @@ export const JotaiAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 		}
 
 		return <JotaiInner id={id} atomRef={atomRef} />
-	}),
+	},
 
 	dispose: () => {
 		itemAtoms.clear()
