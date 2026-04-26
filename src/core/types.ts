@@ -10,12 +10,28 @@ export type WideState = {
 	version: number
 }
 
-export type BenchmarkPayload = {
+type UpdatePayload = {
+	type?: 'UPDATE'
 	index: number
 	newValue: number
-	type?: 'UPDATE' | 'ADD' | 'REMOVE'
-	id?: string
+	id?: never
 }
+
+type AddPayload = {
+	type: 'ADD'
+	id: string
+	newValue: number
+	index?: never
+}
+
+type RemovePayload = {
+	type: 'REMOVE'
+	index: number
+	newValue: number
+	id?: never
+}
+
+export type BenchmarkPayload = UpdatePayload | AddPayload | RemovePayload
 
 export type BenchmarkStats = {
 	mean: number

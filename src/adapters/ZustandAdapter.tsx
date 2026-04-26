@@ -2,22 +2,9 @@ import { create } from 'zustand'
 import type { StateAdapter } from '../core/types'
 import type { BenchmarkPayload, WideState } from '../core/types'
 
-type Store = WideState & {
-	updateItem: (p: BenchmarkPayload) => void
-}
-
-const useStore = create<Store>((set) => ({
+const useStore = create<WideState>(() => ({
 	items: [],
 	version: 0,
-	updateItem: (payload) =>
-		set((state) => {
-			const newItems = state.items.slice()
-			newItems[payload.index] = {
-				...newItems[payload.index],
-				value: payload.newValue,
-			}
-			return { items: newItems }
-		}),
 }))
 
 export const ZustandAdapter: StateAdapter<WideState, BenchmarkPayload> = {
