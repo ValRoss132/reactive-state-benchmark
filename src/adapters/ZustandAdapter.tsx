@@ -12,12 +12,12 @@ const useStore = create<Store>((set) => ({
 	version: 0,
 	updateItem: (payload) =>
 		set((state) => {
-			const newItems = [...state.items]
+			const newItems = state.items.slice()
 			newItems[payload.index] = {
 				...newItems[payload.index],
 				value: payload.newValue,
 			}
-			return { items: newItems, version: state.version + 1 }
+			return { items: newItems }
 		}),
 }))
 

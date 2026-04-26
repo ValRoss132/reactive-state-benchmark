@@ -43,3 +43,13 @@ export type FullReport = {
 	uiCoupled: BenchmarkStats // Анализ renderTime
 	opsPerSec: number
 }
+
+export type PerformanceMemory = {
+	usedJSHeapSize: number
+	totalJSHeapSize: number
+	jsHeapSizeLimit: number
+}
+
+export type ExtendedPerformance = Performance & {
+	memory?: PerformanceMemory
+}

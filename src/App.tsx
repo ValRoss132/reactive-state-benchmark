@@ -6,6 +6,7 @@ import { WideUpdateScenario } from './scenarios/WideUpdate'
 import { ProfilerWrapper } from './core/ProfilerWrapper'
 import { MobXAdapter } from './adapters/MobXAdapter'
 import { JotaiAdapter } from './adapters/JotaiAdapter'
+import { exportToCSV } from './utils/csvExport'
 import type { StateAdapter, FullReport } from './core/types'
 
 const ADAPTERS: StateAdapter<any, any>[] = [
@@ -28,7 +29,7 @@ export const App = () => {
 		setIsRunning(true)
 
 		// Теперь Engine возвращает не массив, а структурированный FullReport
-		const finalReport = await BenchmarkEngine.run(
+		const finalReport = await BenchmarkEngine.runSingle(
 			currentAdapter,
 			WideUpdateScenario,
 			(idx) => setProgress(idx),
@@ -227,6 +228,30 @@ export const App = () => {
 						на{' '}
 						{report.stateCore.cv < 15 ? 'детерминированную' : 'стохастическую'}{' '}
 						природу вычислительных затрат.
+					</div>
+					{/* Кнопка экспорта для ВКР */}
+					<div
+						style={{
+							marginTop: '20px',
+							display: 'flex',
+							justifyContent: 'flex-end',
+							borderTop: '1px dashed #ddd',
+							paddingTop: '20px',
+						}}
+					>
+						<button
+							onClick={() => exportToCSV(report)}
+							style={{
+								...buttonStyle,
+								backgroundColor: '#2e7d32', // Зеленый цвет для успешного действия
+								marginTop: 0,
+								display: 'flex',
+								alignItems: 'center',
+								gap: '8px',
+							}}
+						>
+							<span>💾</span> Экспортировать результаты (CSV)
+						</button>
 					</div>
 				</div>
 			)}

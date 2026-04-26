@@ -17,6 +17,8 @@ export const JotaiAdapter: StateAdapter<WideState, WidePayload> = {
 			itemAtoms.set(item.id, newAtom)
 			benchmarkStore.set(newAtom, item.value)
 		})
+
+		JotaiAdapter.peek()
 	},
 
 	update: (payload) => {
@@ -30,6 +32,7 @@ export const JotaiAdapter: StateAdapter<WideState, WidePayload> = {
 
 	peek: () => {
 		const firstAtom = itemAtoms.get('0')
+		if (!firstAtom) return 0
 		return firstAtom ? benchmarkStore.get(firstAtom) : 0
 	},
 
@@ -50,7 +53,7 @@ export const JotaiAdapter: StateAdapter<WideState, WidePayload> = {
 	},
 }
 
-const JotaiInner = ({ id, atomRef }: { id: string; atomRef: any }) => {
+const JotaiInner = ({ atomRef }: { id: string; atomRef: any }) => {
 	const value = useAtomValue(atomRef, { store: benchmarkStore })
 	return <div data-perf-value={value} style={{ display: 'none' }} />
 }

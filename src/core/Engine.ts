@@ -5,6 +5,7 @@ import type {
 	Scenario,
 	BenchmarkStats,
 	FullReport,
+	ExtendedPerformance,
 } from './types'
 
 export class BenchmarkEngine {
@@ -14,14 +15,13 @@ export class BenchmarkEngine {
 		this.renderTimeBuffer = time
 	}
 
-	// Вспомогательный метод для стат-анализа
 	private static getStats(values: number[]): BenchmarkStats {
 		const sorted = [...values].sort((a, b) => a - b)
 		const mean = values.reduce((a, b) => a + b, 0) / values.length
-		const stdDev = Math.sqrt(
-			values.map((x) => Math.pow(x - mean, 2)).reduce((a, b) => a + b) /
-				values.length,
-		)
+		const variance = values
+			.map((x) => Math.pow(x - mean, 2))
+			.reduce((a, b) => a + b, 0)
+		const stdDev = Math.sqrt(variance / values.length)
 
 		return {
 			mean,
@@ -30,11 +30,11 @@ export class BenchmarkEngine {
 			p99: sorted[Math.floor(sorted.length * 0.99)],
 			max: sorted[sorted.length - 1],
 			standardDeviation: stdDev,
-			cv: (stdDev / mean) * 100,
+			cv: mean > 0 ? (stdDev / mean) * 100 : 0,
 		}
 	}
 
-	static async run<S, P>(
+	static async runSingle<S, P>(
 		adapter: StateAdapter<S, P>,
 		scenario: Scenario<S, P>,
 		onProgress: (iteration: number) => void,
@@ -42,49 +42,49 @@ export class BenchmarkEngine {
 		const results: MetricResult[] = []
 		adapter.init(scenario.initialState)
 
-		// Warmup (прогрев JIT)
 		for (let i = 0; i < scenario.warmupRuns; i++) {
 			flushSync(() => {
 				adapter.update(scenario.generatePayload(i))
 			})
 		}
 
+		const BATCH_SIZE = 5
 		const startTime = performance.now()
+		const perf = window.performance as ExtendedPerformance
 
-		// Main Loop
-		for (let i = 0; i < scenario.iterations; i++) {
+		for (let i = 0; i < scenario.iterations; i += BATCH_SIZE) {
 			onProgress(i)
-			const payload = scenario.generatePayload(i)
 			this.renderTimeBuffer = 0
 
+			const memBefore = perf.memory?.usedJSHeapSize || 0
 			const t0 = performance.now()
 
-			// Замеряем всё: Scripting + Render + Commit
 			flushSync(() => {
-				adapter.update(payload)
+				for (let j = 0; j < BATCH_SIZE; j++) {
+					adapter.update(scenario.generatePayload(i + j))
+				}
 			})
 
 			const t1 = performance.now()
-
-			// Замеряем Propagation (насколько быстро данные доступны для чтения)
 			const t2_start = performance.now()
 			adapter.peek()
 			const t2_end = performance.now()
 
+			const memAfter = perf.memory?.usedJSHeapSize || 0
+
 			results.push({
-				updateTime: t1 - t0 - this.renderTimeBuffer,
+				updateTime: (t1 - t0 - this.renderTimeBuffer) / BATCH_SIZE,
 				propagationTime: t2_end - t2_start,
-				renderTime: this.renderTimeBuffer,
-				memoryDelta: 0,
+				renderTime: this.renderTimeBuffer / BATCH_SIZE,
+				memoryDelta: (memAfter - memBefore) / BATCH_SIZE,
 			})
 
-			// Даем браузеру "продышаться" между кадрами (Task Gap)
-			await new Promise((r) => setTimeout(r, 16))
+			await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)))
 		}
 
 		const endTime = performance.now()
+		adapter.dispose()
 
-		// Формируем финальный отчет по критериям из твоей ВКР
 		return {
 			adapterName: adapter.name,
 			scenarioName: scenario.name,

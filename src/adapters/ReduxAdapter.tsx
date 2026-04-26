@@ -23,7 +23,6 @@ const wideSlice = createSlice({
 			const item = state.items[action.payload.index]
 			if (item) {
 				item.value = action.payload.newValue
-				state.version += 1
 			} else {
 				console.warn(`Item at index ${action.payload.index} not found!`)
 			}

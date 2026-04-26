@@ -22,7 +22,6 @@ class WideStore {
 		const item = this.items[payload.index]
 		if (item) {
 			item.value = payload.newValue
-			this.version++
 		}
 	}
 }

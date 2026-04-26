@@ -10,6 +10,11 @@ export type WidePayload = {
 	newValue: number
 }
 
+const seedRandom = (seed: number) => {
+	const x = Math.sin(seed) * 1000
+	return x - Math.floor(x)
+}
+
 export const WideUpdateScenario: Scenario<WideState, WidePayload> = {
 	name: 'Wide Subscription (1000 items)',
 
@@ -22,11 +27,10 @@ export const WideUpdateScenario: Scenario<WideState, WidePayload> = {
 	},
 
 	generatePayload: (iteration) => ({
-		// Обновляем элементы по кругу
 		index: iteration % 1000,
-		newValue: Math.random(),
+		newValue: seedRandom(iteration),
 	}),
 
-	iterations: 100, // Для тестов хватит, для финального замера поставим 300+
+	iterations: 100,
 	warmupRuns: 10,
 }
