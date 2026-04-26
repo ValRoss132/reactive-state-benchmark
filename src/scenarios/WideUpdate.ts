@@ -1,21 +1,7 @@
-import type { Scenario } from '../core/types'
+import type { BenchmarkPayload, Scenario, WideState } from '../core/types'
+import { seedRandom } from '../utils/seedRandom'
 
-export type WideState = {
-	items: { id: string; value: number }[]
-	version: number
-}
-
-export type WidePayload = {
-	index: number
-	newValue: number
-}
-
-const seedRandom = (seed: number) => {
-	const x = Math.sin(seed) * 1000
-	return x - Math.floor(x)
-}
-
-export const WideUpdateScenario: Scenario<WideState, WidePayload> = {
+export const WideUpdateScenario: Scenario<WideState, BenchmarkPayload> = {
 	name: 'Wide Subscription (1000 items)',
 
 	initialState: {

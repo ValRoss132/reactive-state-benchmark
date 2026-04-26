@@ -1,10 +1,9 @@
 import { create } from 'zustand'
 import type { StateAdapter } from '../core/types'
-import type { WideState, WidePayload } from '../scenarios/WideUpdate'
+import type { BenchmarkPayload, WideState } from '../core/types'
 
-// Внутреннее хранилище
 type Store = WideState & {
-	updateItem: (p: WidePayload) => void
+	updateItem: (p: BenchmarkPayload) => void
 }
 
 const useStore = create<Store>((set) => ({
@@ -21,25 +20,36 @@ const useStore = create<Store>((set) => ({
 		}),
 }))
 
-export const ZustandAdapter: StateAdapter<WideState, WidePayload> = {
+export const ZustandAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 	name: 'Zustand',
 
 	init: (initialData) => {
 		useStore.setState(initialData)
 	},
 
-	update: (payload) => {
-		// Вызов действия вне React-компонента
-		useStore.getState().updateItem(payload)
+	update: (payload: BenchmarkPayload) => {
+		const { type, index, newValue, id } = payload
+
+		useStore.setState((state) => {
+			if (type === 'ADD') {
+				return { items: [...state.items, { id: id!, value: newValue }] }
+			}
+			if (type === 'REMOVE') {
+				return { items: state.items.filter((_, i) => i !== index) }
+			}
+			const newItems = [...state.items]
+			if (newItems[index]) {
+				newItems[index] = { ...newItems[index], value: newValue }
+			}
+			return { items: newItems }
+		})
 	},
 
 	peek: () => {
-		// Чтение для оценки Propagation Cost
 		return useStore.getState().items[0].value
 	},
 
 	Subscriber: ({ id }) => {
-		// Идиоматичный Zustand: подписка на конкретное поле через селектор
 		const value = useStore((state) => state.items[Number(id)]?.value)
 		if (value === undefined) return null
 		return <div data-perf-value={value} style={{ display: 'none' }} />

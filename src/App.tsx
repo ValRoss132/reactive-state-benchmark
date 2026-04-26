@@ -7,8 +7,15 @@ import { ProfilerWrapper } from './core/ProfilerWrapper'
 import { MobXAdapter } from './adapters/MobXAdapter'
 import { JotaiAdapter } from './adapters/JotaiAdapter'
 import { exportToCSV } from './utils/csvExport'
-import type { StateAdapter, FullReport } from './core/types'
+import type { StateAdapter, FullReport, Scenario } from './core/types'
+import { CRUDScenario } from './scenarios/CRUD'
+import { AsyncScenario } from './scenarios/Async'
 
+const SCENARIOS: Scenario<any, any>[] = [
+	WideUpdateScenario,
+	CRUDScenario,
+	AsyncScenario,
+]
 const ADAPTERS: StateAdapter<any, any>[] = [
 	ZustandAdapter,
 	ReduxAdapter,
@@ -17,6 +24,7 @@ const ADAPTERS: StateAdapter<any, any>[] = [
 ]
 
 export const App = () => {
+	const [currentScenario, setCurrentScenario] = useState(SCENARIOS[0])
 	const [currentAdapter, setCurrentAdapter] = useState<StateAdapter<any, any>>(
 		ADAPTERS[0],
 	)
@@ -94,6 +102,20 @@ export const App = () => {
 								<option key={a.name} value={a.name}>
 									{a.name}
 								</option>
+							))}
+						</select>
+						<select
+							disabled={isRunning}
+							value={currentScenario.name}
+							onChange={(e) =>
+								setCurrentScenario(
+									SCENARIOS.find((s) => s.name === e.target.value)!,
+								)
+							}
+							style={inputStyle}
+						>
+							{SCENARIOS.map((s) => (
+								<option key={s.name}>{s.name}</option>
 							))}
 						</select>
 					</div>

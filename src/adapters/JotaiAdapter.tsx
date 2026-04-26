@@ -1,13 +1,12 @@
 import React from 'react'
 import { atom, createStore, useAtomValue } from 'jotai'
 import type { StateAdapter } from '../core/types'
-import type { WideState, WidePayload } from '../scenarios/WideUpdate'
+import type { BenchmarkPayload, WideState } from '../core/types'
 
 const benchmarkStore = createStore()
-// Используем Map вместо массива для более надежного доступа по ключу
 const itemAtoms = new Map<string, any>()
 
-export const JotaiAdapter: StateAdapter<WideState, WidePayload> = {
+export const JotaiAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 	name: 'Jotai',
 
 	init: (initialData) => {
@@ -21,12 +20,20 @@ export const JotaiAdapter: StateAdapter<WideState, WidePayload> = {
 		JotaiAdapter.peek()
 	},
 
-	update: (payload) => {
-		// Находим атом по индексу (преобразуем индекс в строку id)
-		const targetId = payload.index.toString()
-		const targetAtom = itemAtoms.get(targetId)
-		if (targetAtom) {
-			benchmarkStore.set(targetAtom, payload.newValue)
+	update: (payload: BenchmarkPayload) => {
+		const { type, index, newValue, id } = payload
+
+		if (type === 'ADD') {
+			const newAtom = atom(newValue)
+			itemAtoms.set(id!, newAtom)
+			benchmarkStore.set(newAtom, newValue)
+		} else if (type === 'REMOVE') {
+			const targetId = Array.from(itemAtoms.keys())[index]
+			if (targetId) itemAtoms.delete(targetId)
+		} else {
+			const targetId = index.toString()
+			const targetAtom = itemAtoms.get(targetId)
+			if (targetAtom) benchmarkStore.set(targetAtom, newValue)
 		}
 	},
 
@@ -39,8 +46,6 @@ export const JotaiAdapter: StateAdapter<WideState, WidePayload> = {
 	Subscriber: React.memo(({ id }) => {
 		const atomRef = itemAtoms.get(id)
 
-		// Если атома нет (идет инициализация), рендерим заглушку
-		// Это предотвратит Uncaught Error: Atom is undefined
 		if (!atomRef) {
 			return <div style={{ display: 'none' }} data-status='pending' />
 		}

@@ -1,10 +1,9 @@
 import { makeAutoObservable } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import type { StateAdapter } from '../core/types'
-import type { WideState, WidePayload } from '../scenarios/WideUpdate'
+import type { BenchmarkPayload, WideState } from '../core/types'
 import type React from 'react'
 
-// 1. Создаем доменный стор
 class WideStore {
 	items: { id: string; value: number }[] = []
 	version = 0
@@ -18,17 +17,20 @@ class WideStore {
 		this.version = state.version
 	}
 
-	updateItem(payload: WidePayload) {
-		const item = this.items[payload.index]
-		if (item) {
-			item.value = payload.newValue
+	updateItem(payload: BenchmarkPayload) {
+		const { type, index, newValue, id } = payload
+		if (type === 'ADD') {
+			this.items.push({ id: id!, value: newValue })
+		} else if (type === 'REMOVE') {
+			this.items.splice(index, 1)
+		} else {
+			if (this.items[index]) this.items[index].value = newValue
 		}
 	}
 }
 
 const mobxStore = new WideStore()
 
-// 2. Оборачиваем компонент в observer — это магия MobX
 const MobXSubscriber: React.FC<{ id: string }> = observer(({ id }) => {
 	const item = mobxStore.items[Number(id)]
 	const value = item?.value
@@ -37,7 +39,7 @@ const MobXSubscriber: React.FC<{ id: string }> = observer(({ id }) => {
 	return <div data-perf-value={value} style={{ display: 'none' }} />
 })
 
-export const MobXAdapter: StateAdapter<WideState, WidePayload> = {
+export const MobXAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 	name: 'MobX',
 
 	init: (initialData) => {

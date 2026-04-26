@@ -1,8 +1,20 @@
 export type MetricResult = {
-	updateTime: number // Scripting (ms)
-	propagationTime: number // Reactivity/Computed (ms)
-	renderTime: number // React Actual Duration (ms)
-	memoryDelta: number // Heap change (bytes)
+	updateTime: number
+	propagationTime: number
+	renderTime: number
+	memoryDelta: number
+}
+
+export type WideState = {
+	items: { id: string; value: number }[]
+	version: number
+}
+
+export type BenchmarkPayload = {
+	index: number
+	newValue: number
+	type?: 'UPDATE' | 'ADD' | 'REMOVE'
+	id?: string
 }
 
 export type BenchmarkStats = {
@@ -15,19 +27,15 @@ export type BenchmarkStats = {
 	cv: number
 }
 
-// Контракт адаптера (каждая библиотека должна его реализовать)
 export type StateAdapter<TState, TPayload> = {
 	name: string
 	init: (initialData: TState) => void
 	update: (payload: TPayload) => void
-	// Компонент, который подписывается на данные
 	Subscriber: React.FC<{ id: string }>
-	// Чтение значения вне React (для замера стоимости распространения)
 	peek: () => any
 	dispose: () => void
 }
 
-// Описание сценария
 export type Scenario<TState, TPayload> = {
 	name: string
 	initialState: TState
@@ -39,8 +47,8 @@ export type Scenario<TState, TPayload> = {
 export type FullReport = {
 	adapterName: string
 	scenarioName: string
-	stateCore: BenchmarkStats // Анализ updateTime
-	uiCoupled: BenchmarkStats // Анализ renderTime
+	stateCore: BenchmarkStats
+	uiCoupled: BenchmarkStats
 	opsPerSec: number
 }
 
