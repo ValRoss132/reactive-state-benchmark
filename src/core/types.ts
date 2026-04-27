@@ -13,22 +13,21 @@ export type WideState = {
 type UpdatePayload = {
 	type?: 'UPDATE'
 	index: number
+	targetId: string // Явно передаем id элемента для правильной адресации
 	newValue: number
-	id?: never
 }
 
 type AddPayload = {
 	type: 'ADD'
 	id: string
 	newValue: number
-	index?: never
 }
 
 type RemovePayload = {
 	type: 'REMOVE'
 	index: number
+	targetId: string // Для корректности, хотя может не использоваться везде
 	newValue: number
-	id?: never
 }
 
 export type BenchmarkPayload = UpdatePayload | AddPayload | RemovePayload
@@ -60,12 +59,29 @@ export type Scenario<TState, TPayload> = {
 	warmupRuns: number
 }
 
+export type EnvironmentInfo = {
+	userAgent: string
+	timestamp: string
+	timezone: string
+	language: string
+	screenResolution: string
+	deviceMemory?: number
+	hardwareConcurrency?: number
+}
+
 export type FullReport = {
 	adapterName: string
 	scenarioName: string
 	stateCore: BenchmarkStats
 	uiCoupled: BenchmarkStats
 	opsPerSec: number
+	uiProfilerValid: boolean // Валидны ли UI-метрики (был ненулевой профилер)
+	environment?: EnvironmentInfo // Информация об окружении запуска
+	rawRuns?: Array<{
+		stateTimePerOp: number
+		renderTimePerOp: number
+		throughput: number
+	}> // Сырые данные по каждому прогону
 }
 
 export type PerformanceMemory = {
