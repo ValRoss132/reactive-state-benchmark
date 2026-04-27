@@ -131,9 +131,7 @@ export const App = () => {
 							backgroundColor: isRunning ? '#ccc' : '#005bff',
 						}}
 					>
-						{isRunning
-							? `Прогресс: ${progress}%`
-							: 'Запустить эксперимент'}
+						{isRunning ? `Прогресс: ${progress}%` : 'Запустить эксперимент'}
 					</button>
 				</div>
 			</div>
@@ -154,6 +152,28 @@ export const App = () => {
 					<h2 style={{ color: '#005bff' }}>
 						Результаты анализа: {report.adapterName}
 					</h2>
+
+					{!report.uiProfilerValid && (
+						<div
+							style={{
+								background: '#ffcccc',
+								padding: '15px',
+								borderRadius: '8px',
+								marginBottom: '20px',
+								border: '2px solid #d32f2f',
+								fontSize: '14px',
+							}}
+						>
+							<strong style={{ color: '#d32f2f' }}>
+								⚠️ ОШИБКА: UI-метрики невалидны
+							</strong>
+							<br />
+							Профилер React не был активирован. Проверьте режим сборки
+							(необходима производственная сборка с REACT_PROFILING=true).
+							<br />
+							UI-coupled метрики в этом отчете недостоверны.
+						</div>
+					)}
 
 					<div
 						style={{
