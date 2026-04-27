@@ -38,7 +38,7 @@ function verifyAdapterConsistency<S, P>(
 
 			results.push(adapter.peek())
 		}
-		return results[0] === results[1]
+		return JSON.stringify(results[0]) === JSON.stringify(results[1])
 	}
 
 	try {
@@ -94,6 +94,9 @@ export class BenchmarkEngine {
 		for (let run = 0; run < TOTAL_RUNS; run++) {
 			onProgress(Math.round((run / TOTAL_RUNS) * 100))
 
+			// Даем браузеру возможность отрисовать прогресс и не «вешать» вкладку
+			await new Promise((resolve) => setTimeout(resolve, 20))
+
 			adapter.dispose()
 
 			// Глубокая копия для изоляции между прогонами
@@ -107,17 +110,25 @@ export class BenchmarkEngine {
 			this.renderAccumulator = 0
 			let dceShield = 0
 
-			const t0 = performance.now()
+let totalBatchTime = 0
+					let t0 = performance.now()
 
-			for (let i = 0; i < BATCH_SIZE; i++) {
-				flushSync(() => {
-					adapter.update(scenario.generatePayload(i))
-				})
-				dceShield += (adapter.peek() as number) || 0
-			}
+					for (let i = 0; i < BATCH_SIZE; i++) {
+						// Периодически даем браузеру дышать каждые 1000 операций, 
+						// чтобы страница не умирала от длинного синхронного блока (фулфриз)
+						if (i % 1000 === 0 && i > 0) {
+							totalBatchTime += performance.now() - t0
+							await new Promise((resolve) => setTimeout(resolve, 0))
+							t0 = performance.now() // возобновляем таймер
+						}
 
-			const t1 = performance.now()
-			const totalBatchTime = t1 - t0
+						flushSync(() => {
+							adapter.update(scenario.generatePayload(i))
+						})
+						dceShield += (adapter.peek() as number) || 0
+					}
+
+					totalBatchTime += performance.now() - t0
 			const totalRenderTime = this.renderAccumulator
 
 			if (totalRenderTime === 0 && run === 0) {
