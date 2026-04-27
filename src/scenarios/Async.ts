@@ -1,4 +1,5 @@
 import type { BenchmarkPayload, Scenario, WideState } from '../core/types'
+import { seedRandom } from '../utils/seedRandom'
 
 export const AsyncScenario: Scenario<WideState, BenchmarkPayload> = {
 	name: 'High-Frequency Async Stream',
@@ -9,11 +10,11 @@ export const AsyncScenario: Scenario<WideState, BenchmarkPayload> = {
 		})),
 		version: 0,
 	},
-	generatePayload: () => ({
-		index: Math.floor(Math.random() * 1000),
-		newValue: Math.random(),
+	generatePayload: (iteration) => ({
+		index: Math.floor(seedRandom(iteration) * 1000),
+		newValue: seedRandom(iteration + 11),
 		type: 'UPDATE',
 	}),
-	iterations: 2000, // Высокая нагрузка
-	warmupRuns: 100,
+	iterations: 15000,
+	warmupRuns: 1500,
 }

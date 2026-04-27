@@ -59,6 +59,11 @@ export class BenchmarkEngine {
 					'[ГЭК WARN] Profiler вернул 0. Проверьте алиасы vite.config.ts. UI метрики невалидны.',
 				)
 			}
+			if (totalBatchTime < 10) {
+				console.warn(
+					`[ГЭК WARN] Batch ${adapter.name}/${scenario.name} < 10ms (${totalBatchTime.toFixed(3)}ms). Увеличьте iterations.`,
+				)
+			}
 
 			const scriptingTime = Math.max(0, totalBatchTime - totalRenderTime)
 
@@ -70,21 +75,21 @@ export class BenchmarkEngine {
 
 			await new Promise((r) => setTimeout(r, 50))
 		}
+		onProgress(100)
 
 		adapter.dispose()
 
 		const stateStats = calculateRobustStats(runMetrics.updateTimePerOp)
 		const uiStats = calculateRobustStats(runMetrics.renderTimePerOp)
-		const avgThroughput =
-			runMetrics.throughput.reduce((a, b) => a + b, 0) / TOTAL_RUNS
+		const throughputStats = calculateRobustStats(runMetrics.throughput)
 
 		return {
 			adapterName: adapter.name,
 			scenarioName: scenario.name,
 			stateCore: stateStats,
 			uiCoupled: uiStats,
-			pureOpsPerSec: avgThroughput,
-			opsPerSec: avgThroughput,
+			pureOpsPerSec: throughputStats.mean,
+			opsPerSec: throughputStats.mean,
 			runsCompleted: TOTAL_RUNS,
 		}
 	}

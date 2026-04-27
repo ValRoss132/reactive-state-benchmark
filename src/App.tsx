@@ -78,7 +78,7 @@ export const App = () => {
 			>
 				<h1 style={{ marginBottom: '10px' }}>📊 Experimental Research Stand</h1>
 				<p style={{ color: '#666' }}>
-					Исследование реактивных парадигм: {WideUpdateScenario.name}
+					Исследование реактивных парадигм: {currentScenario.name}
 				</p>
 			</header>
 
@@ -132,7 +132,7 @@ export const App = () => {
 						}}
 					>
 						{isRunning
-							? `Прогресс: ${progress} / ${WideUpdateScenario.iterations}`
+							? `Прогресс: ${progress}%`
 							: 'Запустить эксперимент'}
 					</button>
 				</div>
@@ -244,7 +244,7 @@ export const App = () => {
 					>
 						<strong>💡 Интерпретация для выводов ВКР:</strong>
 						<br />
-						При выбранной нагрузке ({WideUpdateScenario.iterations} итераций),
+						При выбранной нагрузке ({currentScenario.iterations} итераций),
 						подход {report.adapterName} демонстрирует
 						{report.uiCoupled.p95 < 16
 							? ' высокий уровень отзывчивости (P95 < 16ms)'

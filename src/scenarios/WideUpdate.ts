@@ -17,6 +17,6 @@ export const WideUpdateScenario: Scenario<WideState, BenchmarkPayload> = {
 		newValue: seedRandom(iteration),
 	}),
 
-	iterations: 100,
-	warmupRuns: 10,
+	iterations: 20000,
+	warmupRuns: 2000,
 }
