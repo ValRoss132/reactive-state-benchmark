@@ -18,13 +18,24 @@ const wideSlice = createSlice({
 			state.items = action.payload.items
 		},
 		processPayload: (state, action: PayloadAction<BenchmarkPayload>) => {
-			const { type, index, newValue, id } = action.payload
+			const { type, index, newValue, id, targetId } = action.payload as any
 			if (type === 'ADD') {
 				state.items.push({ id: id!, value: newValue })
 			} else if (type === 'REMOVE') {
-				state.items.splice(index, 1)
+				// Используем targetId если доступно, иначе падаем на индекс
+				if (targetId) {
+					state.items = state.items.filter((item) => item.id !== targetId)
+				} else {
+					state.items.splice(index, 1)
+				}
 			} else {
-				if (state.items[index]) state.items[index].value = newValue
+				// UPDATE: используем targetId для поиска элемента
+				if (targetId) {
+					const item = state.items.find((item) => item.id === targetId)
+					if (item) item.value = newValue
+				} else if (state.items[index]) {
+					state.items[index].value = newValue
+				}
 			}
 		},
 	},
@@ -54,9 +65,11 @@ export const ReduxAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 	},
 
 	Subscriber: ({ id }) => {
-		const value = useSelector(
-			(state: any) => state.wide.items[Number(id)]?.value,
-		)
+		const value = useSelector((state: any) => {
+			// Ищем элемент по id напрямую
+			const item = state.wide.items.find((item: any) => item.id === id)
+			return item?.value
+		})
 		if (value === undefined) return null
 
 		return <div data-perf-value={value} style={{ display: 'none' }} />

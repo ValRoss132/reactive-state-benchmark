@@ -15,17 +15,28 @@ export const ZustandAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 	},
 
 	update: (payload: BenchmarkPayload) => {
-		const { type, index, newValue, id } = payload
+		const { type, index, newValue, id, targetId } = payload as any
 
 		useStore.setState((state) => {
 			if (type === 'ADD') {
 				return { items: [...state.items, { id: id!, value: newValue }] }
 			}
 			if (type === 'REMOVE') {
+				// Используем targetId для поиска элемента
+				if (targetId) {
+					return { items: state.items.filter((item) => item.id !== targetId) }
+				}
 				return { items: state.items.filter((_, i) => i !== index) }
 			}
 			const newItems = [...state.items]
-			if (newItems[index]) {
+			if (targetId) {
+				// UPDATE с targetId: ищем элемент по id
+				const itemIndex = newItems.findIndex((item) => item.id === targetId)
+				if (itemIndex >= 0) {
+					newItems[itemIndex] = { ...newItems[itemIndex], value: newValue }
+				}
+			} else if (newItems[index]) {
+				// Fallback для WideUpdate/Async по индексу
 				newItems[index] = { ...newItems[index], value: newValue }
 			}
 			return { items: newItems }
@@ -38,7 +49,10 @@ export const ZustandAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 	},
 
 	Subscriber: ({ id }) => {
-		const value = useStore((state) => state.items[Number(id)]?.value)
+		const value = useStore((state) => {
+			const item = state.items.find((item) => item.id === id)
+			return item?.value
+		})
 		if (value === undefined) return null
 		return <div data-perf-value={value} style={{ display: 'none' }} />
 	},

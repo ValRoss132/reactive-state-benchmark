@@ -18,13 +18,29 @@ class WideStore {
 	}
 
 	updateItem(payload: BenchmarkPayload) {
-		const { type, index, newValue, id } = payload
+		const { type, index, newValue, id, targetId } = payload as any
 		if (type === 'ADD') {
 			this.items.push({ id: id!, value: newValue })
 		} else if (type === 'REMOVE') {
-			this.items.splice(index, 1)
+			// Используем targetId для поиска и удаления элемента
+			if (targetId) {
+				const indexToRemove = this.items.findIndex(
+					(item) => item.id === targetId,
+				)
+				if (indexToRemove >= 0) {
+					this.items.splice(indexToRemove, 1)
+				}
+			} else {
+				this.items.splice(index, 1)
+			}
 		} else {
-			if (this.items[index]) this.items[index].value = newValue
+			// UPDATE: используем targetId если доступно
+			if (targetId) {
+				const item = this.items.find((item) => item.id === targetId)
+				if (item) item.value = newValue
+			} else if (this.items[index]) {
+				this.items[index].value = newValue
+			}
 		}
 	}
 }
@@ -32,7 +48,7 @@ class WideStore {
 const mobxStore = new WideStore()
 
 const MobXSubscriber: React.FC<{ id: string }> = observer(({ id }) => {
-	const item = mobxStore.items[Number(id)]
+	const item = mobxStore.items.find((item) => item.id === id)
 	const value = item?.value
 
 	if (value === undefined) return null
