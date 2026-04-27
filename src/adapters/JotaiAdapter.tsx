@@ -20,19 +20,41 @@ export const JotaiAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 	},
 
 	update: (payload: BenchmarkPayload) => {
-		const { type, index, newValue, id } = payload
+		const { type, index, newValue, id, targetId } = payload as any
 
 		if (type === 'ADD') {
 			const newAtom = atom(newValue)
 			itemAtoms.set(id!, newAtom)
 			benchmarkStore.set(newAtom, newValue)
 		} else if (type === 'REMOVE') {
-			const targetId = Array.from(itemAtoms.keys())[index]
-			if (targetId) itemAtoms.delete(targetId)
+			// Используем targetId для удаления атома
+			if (targetId) {
+				itemAtoms.delete(targetId)
+			} else {
+				// Fallback: удаляем по индексу в массиве ключей
+				const keys = Array.from(itemAtoms.keys())
+				if (keys[index]) {
+					itemAtoms.delete(keys[index])
+				}
+			}
 		} else {
-			const targetId = index.toString()
-			const targetAtom = itemAtoms.get(targetId)
-			if (targetAtom) benchmarkStore.set(targetAtom, newValue)
+			// UPDATE: используем targetId для поиска атома
+			if (targetId) {
+				const targetAtom = itemAtoms.get(targetId)
+				if (targetAtom) {
+					benchmarkStore.set(targetAtom, newValue)
+				}
+			} else {
+				// Fallback для WideUpdate/Async - по индексу
+				const keys = Array.from(itemAtoms.keys())
+				const actualId = keys[index]
+				if (actualId) {
+					const targetAtom = itemAtoms.get(actualId)
+					if (targetAtom) {
+						benchmarkStore.set(targetAtom, newValue)
+					}
+				}
+			}
 		}
 	},
 
