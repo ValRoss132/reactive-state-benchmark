@@ -10,11 +10,15 @@ export const AsyncScenario: Scenario<WideState, BenchmarkPayload> = {
 		})),
 		version: 0,
 	},
-	generatePayload: (iteration) => ({
-		index: Math.floor(seedRandom(iteration) * 1000),
-		newValue: seedRandom(iteration + 11),
-		type: 'UPDATE',
-	}),
+	generatePayload: (iteration) => {
+		const targetIndex = Math.floor(seedRandom(iteration) * 1000)
+		return {
+			index: targetIndex,
+			targetId: targetIndex.toString(),
+			newValue: seedRandom(iteration + 11),
+			type: 'UPDATE',
+		}
+	},
 	iterations: 15000,
 	warmupRuns: 1500,
 }

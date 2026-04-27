@@ -14,6 +14,7 @@ export const WideUpdateScenario: Scenario<WideState, BenchmarkPayload> = {
 
 	generatePayload: (iteration) => ({
 		index: iteration % 1000,
+		targetId: (iteration % 1000).toString(),
 		newValue: seedRandom(iteration),
 	}),
 
