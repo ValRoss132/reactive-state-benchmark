@@ -14,26 +14,22 @@ export const calculateRobustStats = (data: number[]): BenchmarkStats => {
 
 	const sorted = [...data].sort((a, b) => a - b)
 
-	const q1 = sorted[Math.floor(sorted.length * 0.25)]
-	const q3 = sorted[Math.floor(sorted.length * 0.75)]
-	const iqr = q3 - q1
-	const lowerBound = Math.max(0, q1 - 1.5 * iqr)
-	const upperBound = q3 + 1.5 * iqr
-
-	const filtered = sorted.filter((x) => x >= lowerBound && x <= upperBound)
-	const targetData = filtered.length > 0 ? filtered : sorted
-
-	const mean = targetData.reduce((a, b) => a + b, 0) / targetData.length
+	// Вычисляем все статистики по одной выборке (без фильтрации)
+	// для прозрачности и единообразия
+	const mean = data.reduce((a, b) => a + b, 0) / data.length
 	const variance =
-		targetData.reduce((a, b) => a + Math.pow(b - mean, 2), 0) /
-		targetData.length
+		data.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / data.length
 	const stdDev = Math.sqrt(variance)
+
+	// Для p95/p99 используем отсортированный массив
+	const p95Index = Math.ceil(data.length * 0.95) - 1
+	const p99Index = Math.ceil(data.length * 0.99) - 1
 
 	return {
 		mean,
-		median: targetData[Math.floor(targetData.length / 2)],
-		p95: sorted[Math.floor(sorted.length * 0.95)],
-		p99: sorted[Math.floor(sorted.length * 0.99)],
+		median: sorted[Math.floor(sorted.length / 2)],
+		p95: sorted[Math.max(0, p95Index)],
+		p99: sorted[Math.max(0, p99Index)],
 		max: sorted[sorted.length - 1],
 		standardDeviation: stdDev,
 		cv: mean > 0 ? (stdDev / mean) * 100 : 0,
