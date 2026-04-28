@@ -70,6 +70,6 @@ export const CRUDScenario: Scenario<WideState, BenchmarkPayload> = {
 			newValue: seedRandom(i),
 		}
 	},
-	iterations: 20000,
-	warmupRuns: 2000,
+	iterations: 10000,
+	warmupRuns: 1000,
 }

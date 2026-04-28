@@ -2,7 +2,7 @@ import type { BenchmarkPayload, Scenario, WideState } from '../core/types'
 import { seedRandom } from '../utils/seedRandom'
 
 export const WideUpdateScenario: Scenario<WideState, BenchmarkPayload> = {
-	name: 'Wide Subscription (1000 items)',
+	name: 'Wide Subscription',
 
 	initialState: {
 		items: Array.from({ length: 1000 }, (_, i) => ({
@@ -18,6 +18,6 @@ export const WideUpdateScenario: Scenario<WideState, BenchmarkPayload> = {
 		newValue: seedRandom(iteration),
 	}),
 
-	iterations: 20000,
-	warmupRuns: 2000,
+	iterations: 10000,
+	warmupRuns: 1000,
 }

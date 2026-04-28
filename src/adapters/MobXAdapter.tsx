@@ -17,7 +17,7 @@ class WideStore {
 		this.items = state.items
 		this.version = state.version
 		this.itemsById.clear()
-		this.items.forEach(item => {
+		this.items.forEach((item) => {
 			this.itemsById.set(item.id, item)
 		})
 	}
@@ -30,7 +30,9 @@ class WideStore {
 			this.itemsById.set(newItem.id, newItem)
 		} else if (type === 'REMOVE') {
 			if (targetId) {
-				const indexToRemove = this.items.findIndex((item) => item.id === targetId)
+				const indexToRemove = this.items.findIndex(
+					(item) => item.id === targetId,
+				)
 				if (indexToRemove >= 0) {
 					this.items.splice(indexToRemove, 1)
 					this.itemsById.delete(targetId)

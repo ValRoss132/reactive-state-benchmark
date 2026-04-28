@@ -19,6 +19,6 @@ export const AsyncScenario: Scenario<WideState, BenchmarkPayload> = {
 			type: 'UPDATE',
 		}
 	},
-	iterations: 15000,
-	warmupRuns: 1500,
+	iterations: 10000,
+	warmupRuns: 1000,
 }
