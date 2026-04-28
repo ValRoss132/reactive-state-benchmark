@@ -6,6 +6,7 @@ import type React from 'react'
 
 class WideStore {
 	items: { id: string; value: number }[] = []
+	itemsById: Map<string, { id: string; value: number }> = new Map()
 	version = 0
 
 	constructor() {
@@ -15,28 +16,33 @@ class WideStore {
 	setInitialState(state: WideState) {
 		this.items = state.items
 		this.version = state.version
+		this.itemsById.clear()
+		this.items.forEach(item => {
+			this.itemsById.set(item.id, item)
+		})
 	}
 
 	updateItem(payload: BenchmarkPayload) {
 		const { type, index, newValue, id, targetId } = payload as any
 		if (type === 'ADD') {
-			this.items.push({ id: id!, value: newValue })
+			const newItem = { id: id!, value: newValue }
+			this.items.push(newItem)
+			this.itemsById.set(newItem.id, newItem)
 		} else if (type === 'REMOVE') {
-			// Используем targetId для поиска и удаления элемента
 			if (targetId) {
-				const indexToRemove = this.items.findIndex(
-					(item) => item.id === targetId,
-				)
+				const indexToRemove = this.items.findIndex((item) => item.id === targetId)
 				if (indexToRemove >= 0) {
 					this.items.splice(indexToRemove, 1)
+					this.itemsById.delete(targetId)
 				}
 			} else {
-				this.items.splice(index, 1)
+				const removed = this.items.splice(index, 1)[0]
+				if (removed) this.itemsById.delete(removed.id)
 			}
 		} else {
-			// UPDATE: используем targetId если доступно
+			// UPDATE
 			if (targetId) {
-				const item = this.items.find((item) => item.id === targetId)
+				const item = this.itemsById.get(targetId)
 				if (item) item.value = newValue
 			} else if (this.items[index]) {
 				this.items[index].value = newValue
@@ -48,7 +54,7 @@ class WideStore {
 const mobxStore = new WideStore()
 
 const MobXSubscriber: React.FC<{ id: string }> = observer(({ id }) => {
-	const item = mobxStore.items.find((item) => item.id === id)
+	const item = mobxStore.itemsById.get(id)
 	const value = item?.value
 
 	if (value === undefined) return null
@@ -74,5 +80,6 @@ export const MobXAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 
 	dispose: () => {
 		mobxStore.items = []
+		mobxStore.itemsById.clear()
 	},
 }

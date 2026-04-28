@@ -2,8 +2,13 @@ import { create } from 'zustand'
 import type { StateAdapter } from '../core/types'
 import type { BenchmarkPayload, WideState } from '../core/types'
 
-const useStore = create<WideState>(() => ({
+interface ExtendedWideState extends WideState {
+	itemsById: Record<string, { id: string; value: number }>
+}
+
+const useStore = create<ExtendedWideState>(() => ({
 	items: [],
+	itemsById: {},
 	version: 0,
 }))
 
@@ -11,7 +16,11 @@ export const ZustandAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 	name: 'Zustand',
 
 	init: (initialData) => {
-		useStore.setState(initialData)
+		const itemsById: Record<string, { id: string; value: number }> = {}
+		initialData.items.forEach((item) => {
+			itemsById[item.id] = item
+		})
+		useStore.setState({ ...initialData, itemsById })
 	},
 
 	update: (payload: BenchmarkPayload) => {
@@ -19,27 +28,44 @@ export const ZustandAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 
 		useStore.setState((state) => {
 			if (type === 'ADD') {
-				return { items: [...state.items, { id: id!, value: newValue }] }
+				const newItem = { id: id!, value: newValue }
+				return {
+					items: [...state.items, newItem],
+					itemsById: { ...state.itemsById, [newItem.id]: newItem },
+				}
 			}
 			if (type === 'REMOVE') {
-				// Используем targetId для поиска элемента
+				const newById = { ...state.itemsById }
+				let newItems = state.items
+
 				if (targetId) {
-					return { items: state.items.filter((item) => item.id !== targetId) }
+					newItems = state.items.filter((item) => item.id !== targetId)
+					delete newById[targetId]
+				} else {
+					const removed = state.items[index]
+					if (removed) {
+						delete newById[removed.id]
+						newItems = state.items.filter((_, i) => i !== index)
+					}
 				}
-				return { items: state.items.filter((_, i) => i !== index) }
+				return { items: newItems, itemsById: newById }
 			}
+
+			// UPDATE
 			const newItems = [...state.items]
-			if (targetId) {
-				// UPDATE с targetId: ищем элемент по id
+			const newById = { ...state.itemsById }
+
+			if (targetId && state.itemsById[targetId]) {
+				const updatedItem = { ...state.itemsById[targetId], value: newValue }
+				newById[targetId] = updatedItem
 				const itemIndex = newItems.findIndex((item) => item.id === targetId)
-				if (itemIndex >= 0) {
-					newItems[itemIndex] = { ...newItems[itemIndex], value: newValue }
-				}
+				if (itemIndex >= 0) newItems[itemIndex] = updatedItem
 			} else if (newItems[index]) {
-				// Fallback для WideUpdate/Async по индексу
-				newItems[index] = { ...newItems[index], value: newValue }
+				const updatedItem = { ...newItems[index], value: newValue }
+				newItems[index] = updatedItem
+				newById[updatedItem.id] = updatedItem
 			}
-			return { items: newItems }
+			return { items: newItems, itemsById: newById }
 		})
 	},
 
@@ -49,15 +75,12 @@ export const ZustandAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 	},
 
 	Subscriber: ({ id }) => {
-		const value = useStore((state) => {
-			const item = state.items.find((item) => item.id === id)
-			return item?.value
-		})
+		const value = useStore((state) => state.itemsById[id]?.value)
 		if (value === undefined) return null
 		return <div data-perf-value={value} style={{ display: 'none' }} />
 	},
 
 	dispose: () => {
-		useStore.setState({ items: [], version: 0 })
+		useStore.setState({ items: [], itemsById: {}, version: 0 })
 	},
 }

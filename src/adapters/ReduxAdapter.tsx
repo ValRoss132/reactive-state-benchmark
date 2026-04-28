@@ -5,8 +5,13 @@ import type { BenchmarkPayload, WideState } from '../core/types'
 import { useSelector, Provider } from 'react-redux'
 import React from 'react'
 
-const defaultState: WideState = {
+interface ExtendedWideState extends WideState {
+	itemsById: Record<string, { id: string; value: number }>
+}
+
+const defaultState: ExtendedWideState = {
 	items: [],
+	itemsById: {},
 	version: 0,
 }
 
@@ -16,25 +21,35 @@ const wideSlice = createSlice({
 	reducers: {
 		setInitialState: (state, action: PayloadAction<WideState>) => {
 			state.items = action.payload.items
+			state.version = action.payload.version
+			state.itemsById = {}
+			action.payload.items.forEach((item) => {
+				state.itemsById[item.id] = item
+			})
 		},
 		processPayload: (state, action: PayloadAction<BenchmarkPayload>) => {
 			const { type, index, newValue, id, targetId } = action.payload as any
 			if (type === 'ADD') {
-				state.items.push({ id: id!, value: newValue })
+				const newItem = { id: id!, value: newValue }
+				state.items.push(newItem)
+				state.itemsById[newItem.id] = newItem
 			} else if (type === 'REMOVE') {
-				// Используем targetId если доступно, иначе падаем на индекс
 				if (targetId) {
 					state.items = state.items.filter((item) => item.id !== targetId)
+					delete state.itemsById[targetId]
 				} else {
-					state.items.splice(index, 1)
+					const removed = state.items.splice(index, 1)[0]
+					if (removed) delete state.itemsById[removed.id]
 				}
 			} else {
-				// UPDATE: используем targetId для поиска элемента
-				if (targetId) {
-					const item = state.items.find((item) => item.id === targetId)
-					if (item) item.value = newValue
+				// UPDATE
+				if (targetId && state.itemsById[targetId]) {
+					state.itemsById[targetId].value = newValue
+					const idx = state.items.findIndex((item) => item.id === targetId)
+					if (idx !== -1) state.items[idx].value = newValue
 				} else if (state.items[index]) {
 					state.items[index].value = newValue
+					state.itemsById[state.items[index].id].value = newValue
 				}
 			}
 		},
@@ -66,9 +81,8 @@ export const ReduxAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 
 	Subscriber: ({ id }) => {
 		const value = useSelector((state: any) => {
-			// Ищем элемент по id напрямую
-			const item = state.wide.items.find((item: any) => item.id === id)
-			return item?.value
+			// Быстрый поиск в кешированной map O(1) вместо O(N)
+			return state.wide.itemsById[id]?.value
 		})
 		if (value === undefined) return null
 
