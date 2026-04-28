@@ -111,24 +111,16 @@ export class BenchmarkEngine {
 			let dceShield = 0
 
 			let totalBatchTime = 0
-			let t0 = performance.now()
+			const t0 = performance.now()
 
 			for (let i = 0; i < BATCH_SIZE; i++) {
-				// Периодически даем браузеру дышать каждые 1000 операций,
-				// чтобы страница не умирала от длинного синхронного блока (фулфриз)
-				if (i % 1000 === 0 && i > 0) {
-					totalBatchTime += performance.now() - t0
-					await new Promise((resolve) => setTimeout(resolve, 0))
-					t0 = performance.now() // возобновляем таймер
-				}
-
 				flushSync(() => {
 					adapter.update(scenario.generatePayload(i))
 				})
 				dceShield += (adapter.peek() as number) || 0
 			}
 
-			totalBatchTime += performance.now() - t0
+			totalBatchTime = performance.now() - t0
 			const totalRenderTime = this.renderAccumulator
 
 			if (totalRenderTime === 0 && run === 0) {
