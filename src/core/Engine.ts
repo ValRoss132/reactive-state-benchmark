@@ -110,7 +110,6 @@ export class BenchmarkEngine {
 			this.renderAccumulator = 0
 			let dceShield = 0
 
-			let totalBatchTime = 0
 			const t0 = performance.now()
 
 			for (let i = 0; i < BATCH_SIZE; i++) {
@@ -120,7 +119,7 @@ export class BenchmarkEngine {
 				dceShield += (adapter.peek() as number) || 0
 			}
 
-			totalBatchTime = performance.now() - t0
+			const totalBatchTime = performance.now() - t0
 			const totalRenderTime = this.renderAccumulator
 
 			if (totalRenderTime === 0 && run === 0) {

@@ -7,6 +7,7 @@ export default defineConfig(({ mode }) => {
 		mode === 'production' && process.env.REACT_PROFILING === 'true'
 
 	return {
+		base: process.env.BASE_PATH ?? '/',
 		plugins: [react()],
 		resolve: {
 			alias: profilingBuild
