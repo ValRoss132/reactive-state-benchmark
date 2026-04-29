@@ -1,5 +1,47 @@
 # React + TypeScript + Vite
 
+## Quick start
+
+### Local development
+
+```bash
+corepack enable
+pnpm install
+pnpm dev
+```
+
+### Production build (static)
+
+```bash
+pnpm build
+pnpm preview
+```
+
+### Docker
+
+Build and run container:
+
+```bash
+docker build -t reactive-bench:local .
+docker run --rm -p 8080:80 reactive-bench:local
+```
+
+Or via Compose:
+
+```bash
+docker compose up --build
+```
+
+Open: http://localhost:8080
+
+## CI/CD
+
+GitHub Actions workflows:
+
+- `CI` — lint + build on PRs and pushes to `main`.
+- `Docker (GHCR)` — builds and pushes image to `ghcr.io/<owner>/<repo>` on `main` and tags.
+- `Deploy to GitHub Pages` — builds with proper `BASE_PATH` and deploys static `dist/` to GitHub Pages.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
@@ -17,29 +59,29 @@ If you are developing a production application, we recommend updating the config
 
 ```js
 export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+	globalIgnores(['dist']),
+	{
+		files: ['**/*.{ts,tsx}'],
+		extends: [
+			// Other configs...
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+			// Remove tseslint.configs.recommended and replace with this
+			tseslint.configs.recommendedTypeChecked,
+			// Alternatively, use this for stricter rules
+			tseslint.configs.strictTypeChecked,
+			// Optionally, add this for stylistic rules
+			tseslint.configs.stylisticTypeChecked,
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
+			// Other configs...
+		],
+		languageOptions: {
+			parserOptions: {
+				project: ['./tsconfig.node.json', './tsconfig.app.json'],
+				tsconfigRootDir: import.meta.dirname,
+			},
+			// other options...
+		},
+	},
 ])
 ```
 
@@ -51,23 +93,23 @@ import reactX from 'eslint-plugin-react-x'
 import reactDom from 'eslint-plugin-react-dom'
 
 export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
+	globalIgnores(['dist']),
+	{
+		files: ['**/*.{ts,tsx}'],
+		extends: [
+			// Other configs...
+			// Enable lint rules for React
+			reactX.configs['recommended-typescript'],
+			// Enable lint rules for React DOM
+			reactDom.configs.recommended,
+		],
+		languageOptions: {
+			parserOptions: {
+				project: ['./tsconfig.node.json', './tsconfig.app.json'],
+				tsconfigRootDir: import.meta.dirname,
+			},
+			// other options...
+		},
+	},
 ])
 ```
