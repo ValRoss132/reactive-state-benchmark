@@ -1,0 +1,9 @@
+services:
+  reactive-bench:
+    build:
+      context: .
+      args:
+        REACT_PROFILING: 'true'
+    ports:
+      - '8080:80'
+    restart: unless-stopped
