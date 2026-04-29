@@ -1,115 +1,108 @@
-# React + TypeScript + Vite
+# Reactive Bench
 
-## Quick start
+Browser-based benchmarking tool for comparing React state management libraries: **Zustand**, **Redux Toolkit**, **MobX**, and **Jotai**.
 
-### Local development
+## Overview
+
+Reactive Bench measures and compares the performance characteristics of different state management approaches under realistic scenarios. It combines static code validation with runtime profiling to capture both scripting time and UI rendering costs.
+
+### Tested Adapters
+
+- **Zustand** — lightweight, minimal overhead
+- **Redux Toolkit** — structured, action-based approach
+- **MobX** — reactive, fine-grained updates
+- **Jotai** — atom-based primitives
+
+### Benchmark Scenarios
+
+- **Wide Update** — mass updates across many state slices
+- **CRUD** — localized create/read/update/delete operations
+- **Async** — state updates triggered by async operations
+
+### Metrics
+
+- `state-core` — overhead of state update mechanism
+- `ui-coupled` — cost of propagating changes to UI
+- `p95/p99` — percentile latencies for detecting outliers
+- `CV` — coefficient of variation for stability assessment
+
+## Quick Start
+
+### Local Development
 
 ```bash
 corepack enable
-pnpm install
+pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-### Production build (static)
+Opens development server with HMR.
+
+### Production Build & Preview
 
 ```bash
 pnpm build
 pnpm preview
 ```
 
+Builds production-optimized static bundle. Preview runs on `http://localhost:4173` by default.
+
 ### Docker
 
-Build and run container:
+#### Direct Docker
 
 ```bash
 docker build -t reactive-bench:local .
 docker run --rm -p 8080:80 reactive-bench:local
 ```
 
-Or via Compose:
+#### Docker Compose (Recommended)
 
 ```bash
 docker compose up --build
 ```
 
-Open: http://localhost:8080
+Launches container with React profiling pre-enabled for accurate UI metrics. Open `http://localhost:8080`.
 
 ## CI/CD
 
-GitHub Actions workflows:
+GitHub Actions workflows automate testing and deployment:
 
-- `CI` — lint + build on PRs and pushes to `main`.
-- `Docker (GHCR)` — builds and pushes image to `ghcr.io/<owner>/<repo>` on `main` and tags.
-- `Deploy to GitHub Pages` — builds with proper `BASE_PATH` and deploys static `dist/` to GitHub Pages.
+- **CI** — linting and build verification on all commits and PRs
+- **Docker** — builds image and pushes to GHCR (`ghcr.io/<owner>/<repo>:latest`)
+- **Pages** — deploys static build to GitHub Pages with proper base path
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Requirements
 
-Currently, two official plugins are available:
+### Local Development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Node.js (v20+)
+- Corepack enabled for automatic pnpm management
 
-## React Compiler
+### Docker
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Docker Engine (or compatible runtime)
+- Docker Compose (optional but recommended)
+- Available TCP port 8080
 
-## Expanding the ESLint configuration
+## Project Structure
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-	globalIgnores(['dist']),
-	{
-		files: ['**/*.{ts,tsx}'],
-		extends: [
-			// Other configs...
-
-			// Remove tseslint.configs.recommended and replace with this
-			tseslint.configs.recommendedTypeChecked,
-			// Alternatively, use this for stricter rules
-			tseslint.configs.strictTypeChecked,
-			// Optionally, add this for stylistic rules
-			tseslint.configs.stylisticTypeChecked,
-
-			// Other configs...
-		],
-		languageOptions: {
-			parserOptions: {
-				project: ['./tsconfig.node.json', './tsconfig.app.json'],
-				tsconfigRootDir: import.meta.dirname,
-			},
-			// other options...
-		},
-	},
-])
+```
+src/
+├── core/          # Benchmark engine and types
+├── adapters/      # State management implementations
+├── scenarios/     # Benchmark test scenarios
+├── components/    # React UI components
+├── utils/         # Helper functions (CSV export, etc.)
+└── hooks/         # Custom React hooks
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Important Notes
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- **Profiling builds**: React profiling is enabled by default in Docker Compose. For local development with UI metrics, set `REACT_PROFILING=true` before build.
+- **Reproducibility**: Results depend on hardware and browser. Use consistent test environment for meaningful comparisons.
+- **Browser**: Chromium-family browsers recommended for stable `performance.now()` timing.
 
-export default defineConfig([
-	globalIgnores(['dist']),
-	{
-		files: ['**/*.{ts,tsx}'],
-		extends: [
-			// Other configs...
-			// Enable lint rules for React
-			reactX.configs['recommended-typescript'],
-			// Enable lint rules for React DOM
-			reactDom.configs.recommended,
-		],
-		languageOptions: {
-			parserOptions: {
-				project: ['./tsconfig.node.json', './tsconfig.app.json'],
-				tsconfigRootDir: import.meta.dirname,
-			},
-			// other options...
-		},
-	},
-])
-```
+## Documentation
+
+See [docs/report.md](docs/report.md) for detailed technical documentation, methodology, and implementation details.
