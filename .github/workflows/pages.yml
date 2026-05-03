@@ -35,6 +35,7 @@ jobs:
       - name: Build (Pages base path)
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
+          REACT_PROFILING: ${{ vars.REACT_PROFILING }}
         run: pnpm build
 
       - name: Configure Pages

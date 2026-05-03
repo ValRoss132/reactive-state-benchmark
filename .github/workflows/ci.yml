@@ -27,4 +27,6 @@ jobs:
         run: pnpm lint
 
       - name: Build
+        env:
+          REACT_PROFILING: ${{ vars.REACT_PROFILING }}
         run: pnpm build

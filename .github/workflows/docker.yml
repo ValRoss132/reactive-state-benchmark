@@ -44,6 +44,8 @@ jobs:
         with:
           context: .
           push: true
+          build-args: |
+            REACT_PROFILING=${{ vars.REACT_PROFILING }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
