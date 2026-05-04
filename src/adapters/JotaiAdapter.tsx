@@ -3,84 +3,79 @@ import type { StateAdapter } from '../core/types'
 import type { BenchmarkPayload, WideState } from '../core/types'
 
 const benchmarkStore = createStore()
-const itemAtoms = new Map<string, any>()
+const itemsAtom = atom<WideState['items']>([])
+const itemValueAtoms = new Map<string, any>()
+
+const resolveIndex = (
+	items: { id: string; value: number }[],
+	index?: number,
+	targetId?: string,
+) => {
+	if (targetId) {
+		const idx = items.findIndex((item) => item.id === targetId)
+		if (idx >= 0) return idx
+	}
+	return typeof index === 'number' ? index : -1
+}
+
+const getItemValueAtom = (id: string) => {
+	let atomRef = itemValueAtoms.get(id)
+	if (!atomRef) {
+		atomRef = atom((get) => {
+			const item = get(itemsAtom).find((candidate) => candidate.id === id)
+			return item?.value
+		})
+		itemValueAtoms.set(id, atomRef)
+	}
+	return atomRef
+}
 
 export const JotaiAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 	name: 'Jotai',
 
 	init: (initialData) => {
-		itemAtoms.clear()
-		initialData.items.forEach((item) => {
-			const newAtom = atom(item.value)
-			itemAtoms.set(item.id, newAtom)
-			benchmarkStore.set(newAtom, item.value)
-		})
-
+		benchmarkStore.set(itemsAtom, initialData.items)
 		JotaiAdapter.peek()
 	},
 
 	update: (payload: BenchmarkPayload) => {
 		const { type, index, newValue, id, targetId } = payload as any
+		const items = [...benchmarkStore.get(itemsAtom)]
 
 		if (type === 'ADD') {
-			const newAtom = atom(newValue)
-			itemAtoms.set(id!, newAtom)
-			benchmarkStore.set(newAtom, newValue)
+			items.push({ id: id!, value: newValue })
+			benchmarkStore.set(itemsAtom, items)
+			return
 		} else if (type === 'REMOVE') {
-			// Используем targetId для удаления атома
-			if (targetId) {
-				itemAtoms.delete(targetId)
-			} else {
-				// Fallback: удаляем по индексу в массиве ключей
-				const keys = Array.from(itemAtoms.keys())
-				if (keys[index]) {
-					itemAtoms.delete(keys[index])
-				}
-			}
+			const idx = resolveIndex(items, index, targetId)
+			if (idx >= 0 && idx < items.length) items.splice(idx, 1)
+			benchmarkStore.set(itemsAtom, items)
+			return
 		} else {
-			// UPDATE: используем targetId для поиска атома
-			if (targetId) {
-				const targetAtom = itemAtoms.get(targetId)
-				if (targetAtom) {
-					benchmarkStore.set(targetAtom, newValue)
-				}
-			} else {
-				// Fallback для WideUpdate/Async - по индексу
-				const keys = Array.from(itemAtoms.keys())
-				const actualId = keys[index]
-				if (actualId) {
-					const targetAtom = itemAtoms.get(actualId)
-					if (targetAtom) {
-						benchmarkStore.set(targetAtom, newValue)
-					}
-				}
+			const idx = resolveIndex(items, index, targetId)
+			if (idx >= 0 && idx < items.length) {
+				items[idx] = { ...items[idx], value: newValue }
+				benchmarkStore.set(itemsAtom, items)
 			}
 		}
 	},
 
 	peek: () => {
-		const firstId = Array.from(itemAtoms.keys())[0]
-		if (!firstId) return null
-		const firstAtom = itemAtoms.get(firstId)
-		return firstAtom ? benchmarkStore.get(firstAtom) : null
+		const items = benchmarkStore.get(itemsAtom)
+		return items.length > 0 ? items[0].value : null
 	},
 
 	Subscriber: ({ id }) => {
-		const atomRef = itemAtoms.get(id)
-
-		if (!atomRef) {
-			return <div style={{ display: 'none' }} data-status='pending' />
-		}
-
-		return <JotaiInner id={id} atomRef={atomRef} />
+		return <JotaiInner id={id} />
 	},
 
 	dispose: () => {
-		itemAtoms.clear()
+		benchmarkStore.set(itemsAtom, [])
 	},
 }
 
-const JotaiInner = ({ atomRef }: { id: string; atomRef: any }) => {
-	const value = useAtomValue(atomRef, { store: benchmarkStore })
+const JotaiInner = ({ id }: { id: string }) => {
+	const value = useAtomValue(getItemValueAtom(id), { store: benchmarkStore })
+	if (value === undefined) return null
 	return <div data-perf-value={value} style={{ display: 'none' }} />
 }

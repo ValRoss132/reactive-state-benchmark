@@ -82,12 +82,14 @@ export class BenchmarkEngine {
 
 		const TOTAL_RUNS = 15 // Увеличено с 10 до 30 для лучшей хвостовой статистики
 		const BATCH_SIZE = scenario.iterations
+		const experimentStart = performance.now()
 
 		const runMetrics = {
 			updateTimePerOp: [] as number[],
 			renderTimePerOp: [] as number[],
 			throughput: [] as number[],
 		}
+		let pureLoopTimeMs = 0
 
 		let uiProfilerValid = true
 
@@ -121,6 +123,7 @@ export class BenchmarkEngine {
 
 			const totalBatchTime = performance.now() - t0
 			const totalRenderTime = this.renderAccumulator
+			pureLoopTimeMs += totalBatchTime
 
 			if (totalRenderTime === 0 && run === 0) {
 				console.warn(
@@ -148,6 +151,8 @@ export class BenchmarkEngine {
 
 		adapter.dispose()
 
+		const totalTimeMs = performance.now() - experimentStart
+
 		const stateStats = calculateRobustStats(runMetrics.updateTimePerOp)
 		const uiStats = calculateRobustStats(runMetrics.renderTimePerOp)
 		const throughputStats = calculateRobustStats(runMetrics.throughput)
@@ -169,6 +174,8 @@ export class BenchmarkEngine {
 			uiCoupled: uiStats,
 			pureOpsPerSec: throughputStats.mean,
 			opsPerSec: throughputStats.mean,
+			totalTimeMs,
+			pureLoopTimeMs,
 			runsCompleted: TOTAL_RUNS,
 			uiProfilerValid,
 			rawRuns,

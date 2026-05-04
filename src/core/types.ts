@@ -75,6 +75,8 @@ export type FullReport = {
 	stateCore: BenchmarkStats
 	uiCoupled: BenchmarkStats
 	opsPerSec: number
+	totalTimeMs: number
+	pureLoopTimeMs: number
 	uiProfilerValid: boolean // Валидны ли UI-метрики (был ненулевой профилер)
 	environment?: EnvironmentInfo // Информация об окружении запуска
 	rawRuns?: Array<{

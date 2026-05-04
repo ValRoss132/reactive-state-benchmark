@@ -72,6 +72,14 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, scenario }) => {
 						value={`${report.opsPerSec.toFixed(0)} ops/s`}
 						isBordered
 					/>
+					<MetricRow
+						label='Общее время эксперимента:'
+						value={`${(report.totalTimeMs / 1000).toFixed(2)} s`}
+					/>
+					<MetricRow
+						label='Время чистого цикла:'
+						value={`${(report.pureLoopTimeMs / 1000).toFixed(2)} s`}
+					/>
 				</ReportCard>
 
 				<ReportCard

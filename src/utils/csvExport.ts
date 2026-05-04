@@ -27,6 +27,8 @@ export const exportToCSV = (report: FullReport) => {
 			report.uiCoupled.standardDeviation.toFixed(6),
 		].join(','),
 		`Throughput (ops/sec),${report.opsPerSec.toFixed(2)},,,,,`,
+		`Total Experiment Time (s),${(report.totalTimeMs / 1000).toFixed(2)},,,,,`,
+		`Pure Loop Time (s),${(report.pureLoopTimeMs / 1000).toFixed(2)},,,,,`,
 		`UI Profiler Valid,${report.uiProfilerValid ? 'YES' : 'NO'},,,,,`,
 	]
 
@@ -48,7 +50,7 @@ export const exportToCSV = (report: FullReport) => {
 
 	// Метаинформация
 	const metadata =
-		`\n\nMetadata\nAdapter,${report.adapterName}\nScenario,${report.scenarioName}\nTotal Runs,${report.rawRuns?.length || 'unknown'}\n` +
+		`\n\nMetadata\nAdapter,${report.adapterName}\nScenario,${report.scenarioName}\nTotal Runs,${report.rawRuns?.length || 'unknown'}\nTotal Experiment Time (s),${(report.totalTimeMs / 1000).toFixed(2)}\nPure Loop Time (s),${(report.pureLoopTimeMs / 1000).toFixed(2)}\n` +
 		`\nEnvironment\n` +
 		`Timestamp,${report.environment?.timestamp || 'unknown'}\n` +
 		`User Agent,${report.environment?.userAgent || 'unknown'}\n` +
