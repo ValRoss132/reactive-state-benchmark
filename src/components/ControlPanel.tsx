@@ -5,7 +5,7 @@ import type {
 	ExperimentConfig,
 	ProgressState,
 	EnvironmentInfo,
-	FullReport,
+	BenchmarkRunSession,
 } from '../core/types'
 import {
 	exportReportsToCSV,
@@ -28,7 +28,7 @@ interface ControlPanelProps {
 	environment: EnvironmentInfo
 	isRunning: boolean
 	progressState: ProgressState
-	reports: FullReport[]
+	sessions: BenchmarkRunSession[]
 	onConfigChange: (config: ExperimentConfig) => void
 	onAdapterChange: (adapterName: string) => void
 	onScenarioChange: (scenarioName: string) => void
@@ -65,7 +65,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 	environment,
 	isRunning,
 	progressState,
-	reports,
+	sessions,
 	onConfigChange,
 	onAdapterChange,
 	onScenarioChange,
@@ -371,22 +371,22 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 				<h3 style={headingStyle}>Экспорт</h3>
 				<div style={buttonRowStyle}>
 					<button
-						disabled={reports.length === 0}
-						onClick={() => exportReportsToJSON(reports)}
+						disabled={sessions.length === 0}
+						onClick={() => exportReportsToJSON(sessions)}
 						style={buttonStyle}
 					>
 						Export JSON
 					</button>
 					<button
-						disabled={reports.length === 0}
-						onClick={() => exportReportsToCSV(reports)}
+						disabled={sessions.length === 0}
+						onClick={() => exportReportsToCSV(sessions)}
 						style={buttonStyle}
 					>
 						Export CSV
 					</button>
 					<button
-						disabled={reports.length === 0}
-						onClick={() => copyMarkdownSummary(reports)}
+						disabled={sessions.length === 0}
+						onClick={() => copyMarkdownSummary(sessions)}
 						style={buttonStyle}
 					>
 						Copy Markdown summary

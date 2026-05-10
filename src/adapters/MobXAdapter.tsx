@@ -75,6 +75,12 @@ const MobXSubscriber: React.FC<{ id: string }> = observer(({ id }) => {
 
 export const MobXAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 	name: 'MobX',
+	metadata: {
+		id: 'mobx',
+		name: 'MobX',
+		group: 'ui-coupled',
+		description: 'Observable object graph with fine-grained React observers.',
+	},
 
 	init: (initialData) => {
 		mobxStore.setInitialState(initialData)

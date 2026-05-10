@@ -173,6 +173,7 @@ export class BenchmarkEngine {
 				updateTime: scriptingTime / config.iterations,
 				renderTime: totalRenderTime / config.iterations,
 				phase: 'measuring',
+				timestamp: new Date().toISOString(),
 			})
 
 			await yieldToBrowser()

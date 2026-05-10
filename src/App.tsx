@@ -8,19 +8,30 @@ import { MobXAdapter } from './adapters/MobXAdapter'
 import { JotaiAdapter } from './adapters/JotaiAdapter'
 import type {
 	StateAdapter,
-	FullReport,
+	BenchmarkRunSession,
 	Scenario,
 	ExperimentConfig,
 	ProgressState,
+	RunKind,
 } from './core/types'
 import { CRUDScenario } from './scenarios/CRUD'
 import { AsyncScenario } from './scenarios/Async'
 import { Header } from './components/Header'
 import { ControlPanel } from './components/ControlPanel'
 import { ReportView } from './components/ReportView'
+import { MethodologyView } from './components/MethodologyView'
+import { DocumentationView } from './components/DocumentationView'
 import { getVisibleSubscriberIds } from './core/config'
 import { captureEnvironmentInfo } from './core/environment'
+import { clearRunHistory, loadRunHistory, saveRunHistory } from './core/history'
 import { loadExperimentConfigPreset } from './core/presets'
+import {
+	appendResultToSession,
+	createCompletedResult,
+	createFailedResult,
+	createRunSession,
+	finalizeRunSession,
+} from './core/sessions'
 
 const SCENARIOS: Scenario<any, any>[] = [
 	WideUpdateScenario,
@@ -45,6 +56,7 @@ const makeDefaultConfig = (): ExperimentConfig => ({
 })
 
 const waitForReact = () => new Promise((resolve) => requestAnimationFrame(resolve))
+type AppTab = 'benchmarks' | 'methodology' | 'documentation'
 
 export const App = () => {
 	const [currentScenario, setCurrentScenario] = useState(SCENARIOS[0])
@@ -52,6 +64,7 @@ export const App = () => {
 		ADAPTERS[0],
 	)
 	const [config, setConfig] = useState<ExperimentConfig>(makeDefaultConfig)
+	const [activeTab, setActiveTab] = useState<AppTab>('benchmarks')
 	const [isRunning, setIsRunning] = useState(false)
 	const [progressState, setProgressState] = useState<ProgressState>({
 		phase: 'idle',
@@ -64,11 +77,21 @@ export const App = () => {
 		progress: 0,
 		elapsedMs: 0,
 	})
-	const [reports, setReports] = useState<FullReport[]>([])
+	const [sessions, setSessions] = useState<BenchmarkRunSession[]>(loadRunHistory)
 	const abortRef = useRef<AbortController | null>(null)
 	const environment = useMemo(() => captureEnvironmentInfo(), [])
+	const updateSessions = (
+		updater: (sessions: BenchmarkRunSession[]) => BenchmarkRunSession[],
+	) => {
+		setSessions((previous) => {
+			const next = updater(previous)
+			saveRunHistory(next)
+			return next
+		})
+	}
 
 	const runMatrix = async (
+		kind: RunKind,
 		adaptersToRun: StateAdapter<any, any>[],
 		scenariosToRun: Scenario<any, any>[],
 	) => {
@@ -78,35 +101,73 @@ export const App = () => {
 			config.measurementRuns *
 			(config.iterations + config.warmupIterations)
 		let stepOffset = 0
-		const nextReports: FullReport[] = []
+		let activeSession = createRunSession({
+			kind,
+			adapters: adaptersToRun,
+			scenarios: scenariosToRun,
+			config,
+			environment,
+		})
 
-		setReports([])
+		updateSessions((previous) => [activeSession, ...previous])
 		setIsRunning(true)
 		abortRef.current = new AbortController()
 
 		try {
 			for (const adapter of adaptersToRun) {
 				for (const scenario of scenariosToRun) {
+					if (abortRef.current.signal.aborted) {
+						throw new DOMException('Benchmark aborted', 'AbortError')
+					}
 					setCurrentAdapter(adapter)
 					setCurrentScenario(scenario)
 					await waitForReact()
 
-					const report = await BenchmarkEngine.runSingle(
-						adapter,
-						scenario,
-						config,
-						(progress) => setProgressState(progress),
-						abortRef.current.signal,
-						stepOffset,
-						totalSteps,
+					try {
+						const report = await BenchmarkEngine.runSingle(
+							adapter,
+							scenario,
+							config,
+							(progress) => setProgressState(progress),
+							abortRef.current.signal,
+							stepOffset,
+							totalSteps,
+						)
+						activeSession = appendResultToSession(
+							activeSession,
+							createCompletedResult(activeSession.id, adapter, report),
+						)
+					} catch (error) {
+						if (error instanceof DOMException && error.name === 'AbortError') {
+							throw error
+						}
+						activeSession = appendResultToSession(
+							activeSession,
+							createFailedResult({
+								sessionId: activeSession.id,
+								adapter,
+								scenario,
+								error,
+							}),
+						)
+					}
+					updateSessions((previous) =>
+						previous.map((session) =>
+							session.id === activeSession.id ? activeSession : session,
+						),
 					)
 					stepOffset +=
 						config.measurementRuns * (config.iterations + config.warmupIterations)
-					nextReports.push(report)
-					setReports([...nextReports])
 				}
 			}
+			activeSession = finalizeRunSession(activeSession)
 		} catch (error) {
+			activeSession = finalizeRunSession(
+				activeSession,
+				error instanceof DOMException && error.name === 'AbortError'
+					? 'cancelled'
+					: 'failed',
+			)
 			setProgressState((previous) => ({
 				...previous,
 				phase:
@@ -116,6 +177,11 @@ export const App = () => {
 				message: error instanceof Error ? error.message : String(error),
 			}))
 		} finally {
+			updateSessions((previous) =>
+				previous.map((session) =>
+					session.id === activeSession.id ? activeSession : session,
+				),
+			)
 			setIsRunning(false)
 			abortRef.current = null
 		}
@@ -138,61 +204,83 @@ export const App = () => {
 	return (
 		<div style={pageStyle}>
 			<Header scenarioName={currentScenario.name} />
+			<nav style={tabBarStyle}>
+				{[
+					['benchmarks', 'Benchmarks'],
+					['methodology', 'Методология'],
+					['documentation', 'Документация'],
+				].map(([id, label]) => (
+					<button
+						key={id}
+						onClick={() => setActiveTab(id as AppTab)}
+						style={{
+							...tabButtonStyle,
+							background: activeTab === id ? '#005bff' : '#e5e7eb',
+							color: activeTab === id ? '#fff' : '#111827',
+						}}
+					>
+						{label}
+					</button>
+				))}
+			</nav>
 
-			<ControlPanel
-				adapters={ADAPTERS}
-				scenarios={SCENARIOS}
-				currentAdapter={currentAdapter}
-				currentScenario={currentScenario}
-				config={config}
-				environment={environment}
-				isRunning={isRunning}
-				progressState={progressState}
-				reports={reports}
-				onConfigChange={setConfig}
-				onAdapterChange={(name) => {
-					const adapter = ADAPTERS.find((a) => a.name === name)
-					if (adapter) setCurrentAdapter(adapter)
-				}}
-				onScenarioChange={(name) => {
-					const scenario = SCENARIOS.find((s) => s.name === name)
-					if (scenario) setCurrentScenario(scenario)
-				}}
-				onRunCurrent={() => runMatrix([currentAdapter], [currentScenario])}
-				onRunScenario={() => runMatrix(ADAPTERS, [currentScenario])}
-				onRunAdapter={() => runMatrix([currentAdapter], SCENARIOS)}
-				onRunAll={() => runMatrix(ADAPTERS, SCENARIOS)}
-				onCancel={() => abortRef.current?.abort()}
-				onReset={() => {
-					setReports([])
-					setProgressState((previous) => ({
-						...previous,
-						phase: 'idle',
-						currentIteration: 0,
-						currentStep: 0,
-						progress: 0,
-						elapsedMs: 0,
-						message: undefined,
-					}))
-				}}
-			/>
+			{activeTab === 'benchmarks' && (
+				<>
+					<ControlPanel
+						adapters={ADAPTERS}
+						scenarios={SCENARIOS}
+						currentAdapter={currentAdapter}
+						currentScenario={currentScenario}
+						config={config}
+						environment={environment}
+						isRunning={isRunning}
+						progressState={progressState}
+						sessions={sessions}
+						onConfigChange={setConfig}
+						onAdapterChange={(name) => {
+							const adapter = ADAPTERS.find((a) => a.name === name)
+							if (adapter) setCurrentAdapter(adapter)
+						}}
+						onScenarioChange={(name) => {
+							const scenario = SCENARIOS.find((s) => s.name === name)
+							if (scenario) setCurrentScenario(scenario)
+						}}
+						onRunCurrent={() =>
+							runMatrix('single', [currentAdapter], [currentScenario])
+						}
+						onRunScenario={() => runMatrix('scenario', ADAPTERS, [currentScenario])}
+						onRunAdapter={() => runMatrix('adapter', [currentAdapter], SCENARIOS)}
+						onRunAll={() => runMatrix('all', ADAPTERS, SCENARIOS)}
+						onCancel={() => abortRef.current?.abort()}
+						onReset={() => {
+							clearRunHistory()
+							setSessions([])
+							setProgressState((previous) => ({
+								...previous,
+								phase: 'idle',
+								currentIteration: 0,
+								currentStep: 0,
+								progress: 0,
+								elapsedMs: 0,
+								message: undefined,
+							}))
+						}}
+					/>
 
-			<div style={{ height: 0, overflow: 'hidden' }}>
-				<ProfilerWrapper
-					id='benchmark-root'
-					onRender={(time) => BenchmarkEngine.recordRenderTime(time)}
-				>
-					{renderWithProvider(subscribers)}
-				</ProfilerWrapper>
-			</div>
+					<div style={{ height: 0, overflow: 'hidden' }}>
+						<ProfilerWrapper
+							id='benchmark-root'
+							onRender={(time) => BenchmarkEngine.recordRenderTime(time)}
+						>
+							{renderWithProvider(subscribers)}
+						</ProfilerWrapper>
+					</div>
 
-			{reports.length > 0 && (
-				<ReportView
-					reports={reports}
-					report={reports[reports.length - 1]}
-					scenario={currentScenario}
-				/>
+					<ReportView sessions={sessions} />
+				</>
 			)}
+			{activeTab === 'methodology' && <MethodologyView />}
+			{activeTab === 'documentation' && <DocumentationView />}
 		</div>
 	)
 }
@@ -203,4 +291,18 @@ const pageStyle: React.CSSProperties = {
 	margin: '0 auto',
 	fontFamily: 'Segoe UI, Roboto, sans-serif',
 	color: '#2f3437',
+}
+
+const tabBarStyle: React.CSSProperties = {
+	display: 'flex',
+	gap: '8px',
+	marginBottom: '18px',
+}
+
+const tabButtonStyle: React.CSSProperties = {
+	padding: '9px 14px',
+	border: 'none',
+	borderRadius: '6px',
+	fontWeight: 700,
+	cursor: 'pointer',
 }

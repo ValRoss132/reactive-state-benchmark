@@ -22,6 +22,12 @@ const getItemAtom = (
 
 export const JotaiAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 	name: 'Jotai',
+	metadata: {
+		id: 'jotai',
+		name: 'Jotai',
+		group: 'ui-coupled',
+		description: 'Atom-level state with per-item subscriptions.',
+	},
 
 	init: (initialData) => {
 		const ids: string[] = []

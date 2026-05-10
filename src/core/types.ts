@@ -43,6 +43,15 @@ export type BenchmarkStats = {
 	cv: number
 }
 
+export type AdapterGroup = 'state-core' | 'ui-coupled' | 'other'
+
+export type AdapterMetadata = {
+	id: string
+	name: string
+	group: AdapterGroup
+	description?: string
+}
+
 export type ExperimentConfig = {
 	iterations: number
 	warmupIterations: number
@@ -83,6 +92,7 @@ export type ProgressState = {
 
 export type StateAdapter<TState, TPayload> = {
 	name: string
+	metadata: AdapterMetadata
 	init: (initialData: TState) => void
 	update: (payload: TPayload) => void
 	Subscriber: React.FC<{ id: string }>
@@ -132,6 +142,53 @@ export type BenchmarkRawMeasurement = {
 	updateTime: number
 	renderTime: number
 	phase: 'measuring'
+	timestamp?: string
+}
+
+export type RunKind = 'single' | 'scenario' | 'adapter' | 'all'
+
+export type RunStatus =
+	| 'running'
+	| 'completed'
+	| 'completed_with_errors'
+	| 'failed'
+	| 'cancelled'
+
+export type BenchmarkResultStatus = 'completed' | 'failed'
+
+export type BenchmarkResult = {
+	id: string
+	sessionId: string
+	adapter: string
+	adapterId: string
+	adapterGroup: AdapterGroup
+	scenario: string
+	metrics?: FullReport
+	rawMeasurements: BenchmarkRawMeasurement[]
+	status: BenchmarkResultStatus
+	error?: string
+}
+
+export type BenchmarkSummary = {
+	totalResults: number
+	successfulResults: number
+	failedResults: number
+	adaptersCount: number
+	scenariosCount: number
+	durationMs: number
+}
+
+export type BenchmarkRunSession = {
+	id: string
+	kind: RunKind
+	title: string
+	startedAt: string
+	completedAt?: string
+	status: RunStatus
+	config: ExperimentConfig
+	environment: EnvironmentInfo
+	results: BenchmarkResult[]
+	summary: BenchmarkSummary
 }
 
 export type ExportEnvelope = {

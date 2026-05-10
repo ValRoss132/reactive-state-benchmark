@@ -77,6 +77,12 @@ const store = configureStore({
 
 export const ReduxAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 	name: 'Redux Toolkit',
+	metadata: {
+		id: 'redux-toolkit',
+		name: 'Redux Toolkit',
+		group: 'state-core',
+		description: 'Centralized immutable store with React Redux selectors.',
+	},
 
 	init: (initialData) => {
 		store.dispatch(wideSlice.actions.setInitialState(initialData))

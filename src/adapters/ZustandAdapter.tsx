@@ -16,6 +16,12 @@ const useStore = create<ExtendedWideState>(() => ({
 
 export const ZustandAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 	name: 'Zustand',
+	metadata: {
+		id: 'zustand',
+		name: 'Zustand',
+		group: 'state-core',
+		description: 'External store with selector-based subscriptions.',
+	},
 
 	init: (initialData) => {
 		const itemsById: Record<string, { id: string; value: number }> = {}
