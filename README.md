@@ -45,7 +45,27 @@ pnpm build
 pnpm preview
 ```
 
-Builds production-optimized static bundle. Preview runs on `http://localhost:4173` by default.
+Builds production-optimized static bundle. React profiling is enabled by default for production builds; set `REACT_PROFILING=false` only for a non-profiling control build. Preview runs on `http://localhost:4173` by default.
+
+### Benchmark Commands
+
+```bash
+pnpm benchmark:profile
+pnpm benchmark:prod
+pnpm benchmark:all
+pnpm test
+```
+
+`benchmark:profile` builds with the React profiling renderer and starts Vite preview. `benchmark:prod` intentionally disables profiling. `benchmark:all` verifies the profiling production build. `test` runs lightweight reproducibility checks for seed generation, progress, statistics, profiling config, and Jotai inclusion.
+
+### Thesis Build
+
+```bash
+pnpm docs:build
+pnpm docs:check
+```
+
+The Markdown source is preserved at `docs/vkr.md`. The Typst entrypoint is `docs/thesis.typ`; metadata and the GOST-oriented wrapper live in `docs/metadata.typ` and `docs/template.typ`.
 
 ### Docker
 
@@ -99,9 +119,10 @@ src/
 
 ## Important Notes
 
-- **Profiling builds**: React profiling is enabled by default in Docker Compose. For local development with UI metrics, set `REACT_PROFILING=true` before build.
+- **Profiling builds**: React profiling is enabled by default for `vite build`; the app warns when profiling is disabled and UI metrics are not reliable.
 - **Reproducibility**: Results depend on hardware and browser. Use consistent test environment for meaningful comparisons.
 - **Browser**: Chromium-family browsers recommended for stable `performance.now()` timing.
+- **Complexity model**: See [docs/adapter-complexity.md](docs/adapter-complexity.md) for the adapter method complexity table.
 
 ## Documentation
 
