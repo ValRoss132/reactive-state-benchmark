@@ -1,39 +1,35 @@
 import { flushSync } from 'react-dom'
 import { calculateRobustStats } from './Stats'
+import { captureEnvironmentInfo, getRuntimeFlags } from './environment'
+import { createProgressState } from './progress'
 import type {
 	StateAdapter,
 	Scenario,
 	FullReport,
-	EnvironmentInfo,
+	ExperimentConfig,
+	ProgressState,
+	BenchmarkRawMeasurement,
 } from './types'
 
-function captureEnvironmentInfo(): EnvironmentInfo {
-	const now = new Date()
-	return {
-		userAgent: navigator.userAgent,
-		timestamp: now.toISOString(),
-		timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-		language: navigator.language,
-		screenResolution: `${window.innerWidth}x${window.innerHeight}`,
-		deviceMemory: (navigator as any).deviceMemory,
-		hardwareConcurrency: navigator.hardwareConcurrency,
-	}
-}
+const yieldToBrowser = () => new Promise((resolve) => setTimeout(resolve, 0))
+export const DEFAULT_MEASUREMENT_RUNS = 15
+
+const cloneState = <S,>(state: S): S => structuredClone(state)
 
 function verifyAdapterConsistency<S, P>(
 	adapter: StateAdapter<S, P>,
 	scenario: Scenario<S, P>,
-	numOperations: number = 100,
+	config: ExperimentConfig,
+	numOperations: number = 50,
 ): boolean {
-	// Проверяем, что адаптер обрабатывает операции консистентно
 	const testAdapterRunTwice = () => {
-		const results: any[] = []
+		const results: unknown[] = []
 		for (let i = 0; i < 2; i++) {
 			adapter.dispose()
-			adapter.init(JSON.parse(JSON.stringify(scenario.initialState)))
+			adapter.init(cloneState(scenario.initialState))
 
 			for (let j = 0; j < numOperations; j++) {
-				adapter.update(scenario.generatePayload(j))
+				adapter.update(scenario.generatePayload(j, config.seed))
 			}
 
 			results.push(adapter.peek())
@@ -49,8 +45,8 @@ function verifyAdapterConsistency<S, P>(
 			)
 		}
 		return isConsistent
-	} catch (e) {
-		console.error(`[Verification] Error verifying adapter ${adapter.name}:`, e)
+	} catch (error) {
+		console.error(`[Verification] Error verifying adapter ${adapter.name}:`, error)
 		return false
 	}
 }
@@ -62,6 +58,7 @@ export type ValidatedReport = FullReport & {
 
 export class BenchmarkEngine {
 	private static renderAccumulator: number = 0
+	static measurementRuns = DEFAULT_MEASUREMENT_RUNS
 
 	static recordRenderTime(time: number) {
 		this.renderAccumulator += time
@@ -70,115 +67,157 @@ export class BenchmarkEngine {
 	static async runSingle<S, P>(
 		adapter: StateAdapter<S, P>,
 		scenario: Scenario<S, P>,
-		onProgress: (progress: number) => void,
+		config: ExperimentConfig,
+		onProgress: (progress: ProgressState) => void,
+		signal?: AbortSignal,
+		progressOffset = 0,
+		totalStepsOverride?: number,
 	): Promise<ValidatedReport> {
-		// Проверка детерминизма и консистентности адаптера перед запуском
-		const isConsistent = verifyAdapterConsistency(adapter, scenario, 50)
-		if (!isConsistent) {
-			console.warn(
-				`[ГЭК WARN] Adapter ${adapter.name} shows non-deterministic behavior. Results may be unreliable.`,
+		const totalIterations = config.warmupIterations + config.iterations
+		const totalSteps =
+			totalStepsOverride ?? config.measurementRuns * totalIterations
+		const startedAt = performance.now()
+		let currentStep = progressOffset
+
+		const emit = (
+			phase: ProgressState['phase'],
+			currentIteration = 0,
+			message?: string,
+		) => {
+			onProgress(
+				createProgressState({
+					phase,
+					adapterName: adapter.name,
+					scenarioName: scenario.name,
+					currentIteration,
+					totalIterations,
+					currentStep,
+					totalSteps,
+					startedAt,
+					message,
+				}),
 			)
 		}
 
-		const TOTAL_RUNS = 15 // Увеличено с 10 до 30 для лучшей хвостовой статистики
-		const BATCH_SIZE = scenario.iterations
-		const experimentStart = performance.now()
-
-		const runMetrics = {
-			updateTimePerOp: [] as number[],
-			renderTimePerOp: [] as number[],
-			throughput: [] as number[],
+		const checkAbort = () => {
+			if (signal?.aborted) throw new DOMException('Benchmark aborted', 'AbortError')
 		}
+
+		emit('preparing', 0)
+		await yieldToBrowser()
+		checkAbort()
+
+		const isConsistent = verifyAdapterConsistency(adapter, scenario, config)
+		if (!isConsistent) {
+			console.warn(
+				`[Benchmark] Adapter ${adapter.name} consistency check failed. Results may be unreliable.`,
+			)
+		}
+
+		const payloads = Array.from({ length: totalIterations }, (_, index) =>
+			scenario.generatePayload(index, config.seed),
+		)
+
+		adapter.dispose()
+		adapter.init(cloneState(scenario.initialState))
+
+		const updateTimePerOp: number[] = []
+		const renderTimePerOp: number[] = []
+		const throughput: number[] = []
+		const rawMeasurements: BenchmarkRawMeasurement[] = []
+		const experimentStart = performance.now()
 		let pureLoopTimeMs = 0
+		let dceShield = 0
 
-		let uiProfilerValid = true
-
-		for (let run = 0; run < TOTAL_RUNS; run++) {
-			onProgress(Math.round((run / TOTAL_RUNS) * 100))
-
-			// Даем браузеру возможность отрисовать прогресс и не «вешать» вкладку
-			await new Promise((resolve) => setTimeout(resolve, 20))
-
+		for (let run = 0; run < config.measurementRuns; run++) {
 			adapter.dispose()
+			adapter.init(cloneState(scenario.initialState))
 
-			// Глубокая копия для изоляции между прогонами
-			const initialStateCopy = JSON.parse(JSON.stringify(scenario.initialState))
-			adapter.init(initialStateCopy)
-
-			for (let i = 0; i < scenario.warmupRuns; i++) {
-				adapter.update(scenario.generatePayload(i))
+			for (let i = 0; i < config.warmupIterations; i++) {
+				checkAbort()
+				emit('warmup', i + 1)
+				flushSync(() => {
+					adapter.update(payloads[i])
+				})
+				dceShield += (adapter.peek() as number) || 0
+				currentStep += 1
+				if (i % 50 === 0) await yieldToBrowser()
 			}
 
 			this.renderAccumulator = 0
-			let dceShield = 0
-
 			const t0 = performance.now()
 
-			for (let i = 0; i < BATCH_SIZE; i++) {
+			for (let i = 0; i < config.iterations; i++) {
+				checkAbort()
+				const absoluteIteration = config.warmupIterations + i
+				emit('measuring', i + 1)
 				flushSync(() => {
-					adapter.update(scenario.generatePayload(i))
+					adapter.update(payloads[absoluteIteration])
 				})
 				dceShield += (adapter.peek() as number) || 0
+				currentStep += 1
+				if (i % 50 === 0) await yieldToBrowser()
 			}
 
 			const totalBatchTime = performance.now() - t0
 			const totalRenderTime = this.renderAccumulator
+			const scriptingTime = Math.max(0, totalBatchTime - totalRenderTime)
 			pureLoopTimeMs += totalBatchTime
 
-			if (totalRenderTime === 0 && run === 0) {
-				console.warn(
-					'[ГЭК WARN] Profiler вернул 0. Проверьте алиасы vite.config.ts. UI метрики невалидны.',
-				)
-				uiProfilerValid = false
-			}
-			if (totalBatchTime < 10) {
-				console.warn(
-					`[ГЭК WARN] Batch ${adapter.name}/${scenario.name} < 10ms (${totalBatchTime.toFixed(3)}ms). Увеличьте iterations.`,
-				)
-			}
+			updateTimePerOp.push(scriptingTime / config.iterations)
+			renderTimePerOp.push(totalRenderTime / config.iterations)
+			throughput.push((config.iterations / totalBatchTime) * 1000)
+			rawMeasurements.push({
+				iteration: run + 1,
+				updateTime: scriptingTime / config.iterations,
+				renderTime: totalRenderTime / config.iterations,
+				phase: 'measuring',
+			})
 
-			const scriptingTime = Math.max(0, totalBatchTime - totalRenderTime)
-
-			runMetrics.updateTimePerOp.push(scriptingTime / BATCH_SIZE)
-			runMetrics.renderTimePerOp.push(totalRenderTime / BATCH_SIZE)
-			runMetrics.throughput.push((BATCH_SIZE / totalBatchTime) * 1000)
-
-			if (dceShield === -Infinity) console.debug('DCE Shield:', dceShield)
-
-			await new Promise((r) => setTimeout(r, 50))
+			await yieldToBrowser()
 		}
-		onProgress(100)
+
+		if (dceShield === -Infinity) console.debug('DCE Shield:', dceShield)
+
+		emit('aggregating', config.iterations)
+		await yieldToBrowser()
+
+		const totalRenderTime = renderTimePerOp.reduce((sum, value) => sum + value, 0)
+		if (totalRenderTime === 0) {
+			console.warn(
+				`[Benchmark] No UI render samples captured for ${adapter.name}/${scenario.name}. This can mean there were no subscribed component commits, not necessarily a missing profiling build.`,
+			)
+		}
 
 		adapter.dispose()
-
 		const totalTimeMs = performance.now() - experimentStart
-
-		const stateStats = calculateRobustStats(runMetrics.updateTimePerOp)
-		const uiStats = calculateRobustStats(runMetrics.renderTimePerOp)
-		const throughputStats = calculateRobustStats(runMetrics.throughput)
-
-		// Собираем сырые данные по прогонам
-		const rawRuns = runMetrics.updateTimePerOp.map((stateTime, idx) => ({
-			stateTimePerOp: stateTime,
-			renderTimePerOp: runMetrics.renderTimePerOp[idx],
-			throughput: runMetrics.throughput[idx],
-		}))
-
-		// Собираем информацию об окружении
+		const stateStats = calculateRobustStats(updateTimePerOp)
+		const uiStats = calculateRobustStats(renderTimePerOp)
+		const throughputStats = calculateRobustStats(throughput)
 		const environment = captureEnvironmentInfo()
+		const runtime = getRuntimeFlags()
+		currentStep = Math.min(totalSteps, currentStep)
+
+		emit('completed', config.iterations)
 
 		return {
 			adapterName: adapter.name,
 			scenarioName: scenario.name,
+			config,
 			stateCore: stateStats,
 			uiCoupled: uiStats,
 			pureOpsPerSec: throughputStats.mean,
 			opsPerSec: throughputStats.mean,
 			totalTimeMs,
 			pureLoopTimeMs,
-			runsCompleted: TOTAL_RUNS,
-			uiProfilerValid,
-			rawRuns,
+			runsCompleted: config.measurementRuns,
+			uiProfilerValid: runtime.profilingEnabled,
+			rawRuns: updateTimePerOp.map((stateTime, index) => ({
+				stateTimePerOp: stateTime,
+				renderTimePerOp: renderTimePerOp[index],
+				throughput: throughput[index],
+			})),
+			rawMeasurements,
 			environment,
 		}
 	}

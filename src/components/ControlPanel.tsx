@@ -1,16 +1,48 @@
 import React from 'react'
-import type { StateAdapter, Scenario } from '../core/types'
+import type {
+	StateAdapter,
+	Scenario,
+	ExperimentConfig,
+	ProgressState,
+	EnvironmentInfo,
+	FullReport,
+} from '../core/types'
+import {
+	exportReportsToCSV,
+	exportReportsToJSON,
+	copyMarkdownSummary,
+} from '../utils/exportResults'
 
 interface ControlPanelProps {
 	adapters: StateAdapter<any, any>[]
 	scenarios: Scenario<any, any>[]
 	currentAdapter: StateAdapter<any, any>
 	currentScenario: Scenario<any, any>
+	config: ExperimentConfig
+	environment: EnvironmentInfo
 	isRunning: boolean
-	progress: number
+	progressState: ProgressState
+	reports: FullReport[]
+	onConfigChange: (config: ExperimentConfig) => void
 	onAdapterChange: (adapterName: string) => void
 	onScenarioChange: (scenarioName: string) => void
-	onStart: () => void
+	onRunCurrent: () => void
+	onRunScenario: () => void
+	onRunAdapter: () => void
+	onRunAll: () => void
+	onCancel: () => void
+	onReset: () => void
+}
+
+const positiveInt = (value: string, fallback: number) => {
+	const parsed = Number(value)
+	return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
+}
+
+const formatMs = (value?: number) => {
+	if (value === undefined) return 'unknown'
+	if (value < 1000) return `${Math.round(value)} ms`
+	return `${(value / 1000).toFixed(1)} s`
 }
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -18,84 +50,343 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 	scenarios,
 	currentAdapter,
 	currentScenario,
+	config,
+	environment,
 	isRunning,
-	progress,
+	progressState,
+	reports,
+	onConfigChange,
 	onAdapterChange,
 	onScenarioChange,
-	onStart,
+	onRunCurrent,
+	onRunScenario,
+	onRunAdapter,
+	onRunAll,
+	onCancel,
+	onReset,
 }) => {
-	return (
-		<div style={cardStyle}>
-			<h3 style={{ marginTop: 0 }}>Параметры эксперимента</h3>
-			<div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-				<div>
-					<label
-						style={{ display: 'block', fontSize: '12px', fontWeight: 'bold' }}
-					>
-						Целевой адаптер:
-					</label>
-					<select
-						disabled={isRunning}
-						value={currentAdapter.name}
-						onChange={(e) => onAdapterChange(e.target.value)}
-						style={inputStyle}
-					>
-						{adapters.map((a) => (
-							<option key={a.name} value={a.name}>
-								{a.name}
-							</option>
-						))}
-					</select>
-					<select
-						disabled={isRunning}
-						value={currentScenario.name}
-						onChange={(e) => onScenarioChange(e.target.value)}
-						style={{ ...inputStyle, marginLeft: '10px' }}
-					>
-						{scenarios.map((s) => (
-							<option key={s.name}>{s.name}</option>
-						))}
-					</select>
-				</div>
+	const updateConfig = (patch: Partial<ExperimentConfig>) =>
+		onConfigChange({ ...config, ...patch })
 
-				<button
-					onClick={onStart}
-					disabled={isRunning}
-					style={{
-						...buttonStyle,
-						backgroundColor: isRunning ? '#ccc' : '#005bff',
-					}}
-				>
-					{isRunning ? `Прогресс: ${progress}%` : 'Запустить эксперимент'}
-				</button>
-			</div>
+	return (
+		<div style={panelStyle}>
+			<section style={sectionStyle}>
+				<h3 style={headingStyle}>Параметры эксперимента</h3>
+				<div style={gridStyle}>
+					<label style={fieldStyle}>
+						<span style={labelStyle}>Адаптер</span>
+						<select
+							disabled={isRunning}
+							value={currentAdapter.name}
+							onChange={(event) => onAdapterChange(event.target.value)}
+							style={inputStyle}
+						>
+							{adapters.map((adapter) => (
+								<option key={adapter.name} value={adapter.name}>
+									{adapter.name}
+								</option>
+							))}
+						</select>
+					</label>
+					<label style={fieldStyle}>
+						<span style={labelStyle}>Сценарий</span>
+						<select
+							disabled={isRunning}
+							value={currentScenario.name}
+							onChange={(event) => onScenarioChange(event.target.value)}
+							style={inputStyle}
+						>
+							{scenarios.map((scenario) => (
+								<option key={scenario.name}>{scenario.name}</option>
+							))}
+						</select>
+					</label>
+					<label style={fieldStyle}>
+						<span style={labelStyle}>Iterations</span>
+						<input
+							disabled={isRunning}
+							type='number'
+							min={1}
+							value={config.iterations}
+							onChange={(event) =>
+								updateConfig({
+									iterations: positiveInt(event.target.value, config.iterations),
+								})
+							}
+							style={inputStyle}
+						/>
+					</label>
+					<label style={fieldStyle}>
+						<span style={labelStyle}>Warmup</span>
+						<input
+							disabled={isRunning}
+							type='number'
+							min={1}
+							value={config.warmupIterations}
+							onChange={(event) =>
+								updateConfig({
+									warmupIterations: positiveInt(
+										event.target.value,
+										config.warmupIterations,
+									),
+								})
+							}
+							style={inputStyle}
+						/>
+					</label>
+					<label style={fieldStyle}>
+						<span style={labelStyle}>Runs</span>
+						<input
+							disabled={isRunning}
+							type='number'
+							min={1}
+							value={config.measurementRuns}
+							onChange={(event) =>
+								updateConfig({
+									measurementRuns: positiveInt(
+										event.target.value,
+										config.measurementRuns,
+									),
+								})
+							}
+							style={inputStyle}
+						/>
+					</label>
+					<label style={fieldStyle}>
+						<span style={labelStyle}>Seed</span>
+						<input
+							disabled={isRunning}
+							type='number'
+							value={config.seed}
+							onChange={(event) =>
+								updateConfig({ seed: Number(event.target.value) || 0 })
+							}
+							style={inputStyle}
+						/>
+					</label>
+				</div>
+				<div style={buttonRowStyle}>
+					<button disabled={isRunning} onClick={onRunCurrent} style={buttonStyle}>
+						Run selected
+					</button>
+					<button disabled={isRunning} onClick={onRunScenario} style={buttonStyle}>
+						Run scenario
+					</button>
+					<button disabled={isRunning} onClick={onRunAdapter} style={buttonStyle}>
+						Run adapter
+					</button>
+					<button disabled={isRunning} onClick={onRunAll} style={primaryButtonStyle}>
+						Run all benchmarks
+					</button>
+					<button disabled={!isRunning} onClick={onCancel} style={dangerButtonStyle}>
+						Cancel
+					</button>
+					<button disabled={isRunning} onClick={onReset} style={mutedButtonStyle}>
+						Reset
+					</button>
+				</div>
+			</section>
+
+			<section style={sectionStyle}>
+				<h3 style={headingStyle}>Статус выполнения</h3>
+				<div style={progressTrackStyle}>
+					<div
+						style={{
+							...progressBarStyle,
+							width: `${progressState.progress}%`,
+						}}
+					/>
+				</div>
+				<div style={statusGridStyle}>
+					<span>Progress: {progressState.progress}%</span>
+					<span>Phase: {progressState.phase}</span>
+					<span>Adapter: {progressState.adapterName}</span>
+					<span>Scenario: {progressState.scenarioName}</span>
+					<span>
+						Iteration: {progressState.currentIteration}/
+						{progressState.totalIterations}
+					</span>
+					<span>Runs: {config.measurementRuns}</span>
+					<span>
+						Step: {progressState.currentStep}/{progressState.totalSteps}
+					</span>
+					<span>Elapsed: {formatMs(progressState.elapsedMs)}</span>
+					<span>ETA: {formatMs(progressState.estimatedRemainingMs)}</span>
+				</div>
+				{progressState.message && (
+					<div style={errorStyle}>{progressState.message}</div>
+				)}
+			</section>
+
+			<section style={sectionStyle}>
+				<h3 style={headingStyle}>Environment</h3>
+				<div style={environmentGridStyle}>
+					<span>
+						Browser: {environment.browserName} {environment.browserVersion}
+					</span>
+					<span>OS: {environment.os}</span>
+					<span>Platform: {environment.platform}</span>
+					<span>Viewport: {environment.viewportSize}</span>
+					<span>Screen: {environment.screenResolution}</span>
+					<span>DPR: {environment.devicePixelRatio}</span>
+					<span>CPU threads: {environment.hardwareConcurrency}</span>
+					<span>Memory: {environment.deviceMemory}</span>
+					<span>React: {environment.reactVersion}</span>
+					<span>Build: {environment.buildMode}</span>
+					<span>Profiling: {environment.profilingEnabled ? 'enabled' : 'disabled'}</span>
+					<span>Commit: {environment.gitCommitHash}</span>
+				</div>
+				{!environment.profilingEnabled && (
+					<div style={warningStyle}>
+						Profiling build is disabled. UI-coupled metrics may be reported as
+						invalid; use `pnpm benchmark:profile`.
+					</div>
+				)}
+			</section>
+
+			<section style={sectionStyle}>
+				<h3 style={headingStyle}>Экспорт</h3>
+				<div style={buttonRowStyle}>
+					<button
+						disabled={reports.length === 0}
+						onClick={() => exportReportsToJSON(reports)}
+						style={buttonStyle}
+					>
+						Export JSON
+					</button>
+					<button
+						disabled={reports.length === 0}
+						onClick={() => exportReportsToCSV(reports)}
+						style={buttonStyle}
+					>
+						Export CSV
+					</button>
+					<button
+						disabled={reports.length === 0}
+						onClick={() => copyMarkdownSummary(reports)}
+						style={buttonStyle}
+					>
+						Copy Markdown summary
+					</button>
+				</div>
+			</section>
 		</div>
 	)
 }
 
-const cardStyle: React.CSSProperties = {
-	background: '#f8f9fa',
-	padding: '20px',
-	borderRadius: '12px',
-	boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-	marginBottom: '30px',
+const panelStyle: React.CSSProperties = {
+	background: '#f6f7f9',
+	padding: '18px',
+	borderRadius: '8px',
+	border: '1px solid #dde1e6',
+	marginBottom: '28px',
 }
 
-const inputStyle = {
+const sectionStyle: React.CSSProperties = {
+	marginBottom: '18px',
+}
+
+const headingStyle: React.CSSProperties = {
+	margin: '0 0 12px',
+	fontSize: '16px',
+}
+
+const gridStyle: React.CSSProperties = {
+	display: 'grid',
+	gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+	gap: '12px',
+}
+
+const fieldStyle: React.CSSProperties = {
+	display: 'flex',
+	flexDirection: 'column',
+	gap: '5px',
+}
+
+const labelStyle: React.CSSProperties = {
+	fontSize: '12px',
+	fontWeight: 700,
+}
+
+const inputStyle: React.CSSProperties = {
 	padding: '8px',
 	borderRadius: '4px',
-	border: '1px solid #ccc',
-	marginTop: '5px',
-	width: '200px',
+	border: '1px solid #b8c0cc',
+	minWidth: 0,
 }
 
-const buttonStyle = {
-	padding: '10px 25px',
+const buttonRowStyle: React.CSSProperties = {
+	display: 'flex',
+	flexWrap: 'wrap',
+	gap: '10px',
+	marginTop: '12px',
+}
+
+const baseButtonStyle: React.CSSProperties = {
+	padding: '9px 14px',
 	border: 'none',
 	borderRadius: '6px',
 	color: '#fff',
-	fontWeight: 'bold',
+	fontWeight: 700,
 	cursor: 'pointer',
-	transition: 'all 0.2s',
-	marginTop: '18px',
+}
+
+const buttonStyle: React.CSSProperties = {
+	...baseButtonStyle,
+	backgroundColor: '#475569',
+}
+
+const primaryButtonStyle: React.CSSProperties = {
+	...baseButtonStyle,
+	backgroundColor: '#005bff',
+}
+
+const dangerButtonStyle: React.CSSProperties = {
+	...baseButtonStyle,
+	backgroundColor: '#b42318',
+}
+
+const mutedButtonStyle: React.CSSProperties = {
+	...baseButtonStyle,
+	backgroundColor: '#6b7280',
+}
+
+const progressTrackStyle: React.CSSProperties = {
+	height: '12px',
+	background: '#d8dee8',
+	borderRadius: '999px',
+	overflow: 'hidden',
+}
+
+const progressBarStyle: React.CSSProperties = {
+	height: '100%',
+	background: '#0f766e',
+	transition: 'width 120ms ease-out',
+}
+
+const statusGridStyle: React.CSSProperties = {
+	display: 'grid',
+	gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+	gap: '8px',
+	marginTop: '12px',
+	fontSize: '13px',
+}
+
+const environmentGridStyle: React.CSSProperties = {
+	...statusGridStyle,
+	marginTop: 0,
+}
+
+const warningStyle: React.CSSProperties = {
+	marginTop: '12px',
+	padding: '10px',
+	borderRadius: '6px',
+	background: '#fff4cc',
+	border: '1px solid #eab308',
+}
+
+const errorStyle: React.CSSProperties = {
+	...warningStyle,
+	background: '#fee2e2',
+	border: '1px solid #ef4444',
 }

@@ -1,17 +1,24 @@
-import React, { useState, useMemo } from 'react'
-import { BenchmarkEngine } from './core/Engine'
+import React, { useMemo, useRef, useState } from 'react'
+import { BenchmarkEngine, DEFAULT_MEASUREMENT_RUNS } from './core/Engine'
 import { ZustandAdapter } from './adapters/ZustandAdapter'
 import { ReduxAdapter, ReduxProvider } from './adapters/ReduxAdapter'
 import { WideUpdateScenario } from './scenarios/WideUpdate'
 import { ProfilerWrapper } from './core/ProfilerWrapper'
 import { MobXAdapter } from './adapters/MobXAdapter'
 import { JotaiAdapter } from './adapters/JotaiAdapter'
-import type { StateAdapter, FullReport, Scenario } from './core/types'
+import type {
+	StateAdapter,
+	FullReport,
+	Scenario,
+	ExperimentConfig,
+	ProgressState,
+} from './core/types'
 import { CRUDScenario } from './scenarios/CRUD'
 import { AsyncScenario } from './scenarios/Async'
 import { Header } from './components/Header'
 import { ControlPanel } from './components/ControlPanel'
 import { ReportView } from './components/ReportView'
+import { captureEnvironmentInfo } from './core/environment'
 
 const SCENARIOS: Scenario<any, any>[] = [
 	WideUpdateScenario,
@@ -25,28 +32,88 @@ const ADAPTERS: StateAdapter<any, any>[] = [
 	JotaiAdapter,
 ]
 
+const makeDefaultConfig = (): ExperimentConfig => ({
+	iterations: 10000,
+	warmupIterations: 1000,
+	measurementRuns: DEFAULT_MEASUREMENT_RUNS,
+	seed: Date.now() % 1000000,
+})
+
+const waitForReact = () => new Promise((resolve) => requestAnimationFrame(resolve))
+
 export const App = () => {
 	const [currentScenario, setCurrentScenario] = useState(SCENARIOS[0])
 	const [currentAdapter, setCurrentAdapter] = useState<StateAdapter<any, any>>(
 		ADAPTERS[0],
 	)
+	const [config, setConfig] = useState<ExperimentConfig>(makeDefaultConfig)
 	const [isRunning, setIsRunning] = useState(false)
-	const [progress, setProgress] = useState(0)
-	const [report, setReport] = useState<FullReport | null>(null)
+	const [progressState, setProgressState] = useState<ProgressState>({
+		phase: 'idle',
+		adapterName: currentAdapter.name,
+		scenarioName: currentScenario.name,
+		currentIteration: 0,
+		totalIterations: config.iterations + config.warmupIterations,
+		currentStep: 0,
+		totalSteps: config.measurementRuns * (config.iterations + config.warmupIterations),
+		progress: 0,
+		elapsedMs: 0,
+	})
+	const [reports, setReports] = useState<FullReport[]>([])
+	const abortRef = useRef<AbortController | null>(null)
+	const environment = useMemo(() => captureEnvironmentInfo(), [])
 
-	const startBenchmark = async () => {
-		setReport(null)
+	const runMatrix = async (
+		adaptersToRun: StateAdapter<any, any>[],
+		scenariosToRun: Scenario<any, any>[],
+	) => {
+		const totalSteps =
+			adaptersToRun.length *
+			scenariosToRun.length *
+			config.measurementRuns *
+			(config.iterations + config.warmupIterations)
+		let stepOffset = 0
+		const nextReports: FullReport[] = []
+
+		setReports([])
 		setIsRunning(true)
+		abortRef.current = new AbortController()
 
-		// Теперь Engine возвращает не массив, а структурированный FullReport
-		const finalReport = await BenchmarkEngine.runSingle(
-			currentAdapter,
-			currentScenario,
-			(idx) => setProgress(idx),
-		)
+		try {
+			for (const adapter of adaptersToRun) {
+				for (const scenario of scenariosToRun) {
+					setCurrentAdapter(adapter)
+					setCurrentScenario(scenario)
+					await waitForReact()
 
-		setReport(finalReport)
-		setIsRunning(false)
+					const report = await BenchmarkEngine.runSingle(
+						adapter,
+						scenario,
+						config,
+						(progress) => setProgressState(progress),
+						abortRef.current.signal,
+						stepOffset,
+						totalSteps,
+					)
+					stepOffset +=
+						config.measurementRuns * (config.iterations + config.warmupIterations)
+					nextReports.push(report)
+					setReports([...nextReports])
+				}
+			}
+		} catch (error) {
+			setProgressState((previous) => ({
+				...previous,
+				phase:
+					error instanceof DOMException && error.name === 'AbortError'
+						? 'cancelled'
+						: 'failed',
+				message: error instanceof Error ? error.message : String(error),
+			}))
+		} finally {
+			setIsRunning(false)
+			abortRef.current = null
+		}
 	}
 
 	const subscribers = useMemo(() => {
@@ -66,15 +133,7 @@ export const App = () => {
 	}
 
 	return (
-		<div
-			style={{
-				padding: '30px',
-				maxWidth: '1200px',
-				margin: '0 auto',
-				fontFamily: 'Segoe UI, Roboto, sans-serif',
-				color: '#333',
-			}}
-		>
+		<div style={pageStyle}>
 			<Header scenarioName={currentScenario.name} />
 
 			<ControlPanel
@@ -82,8 +141,12 @@ export const App = () => {
 				scenarios={SCENARIOS}
 				currentAdapter={currentAdapter}
 				currentScenario={currentScenario}
+				config={config}
+				environment={environment}
 				isRunning={isRunning}
-				progress={progress}
+				progressState={progressState}
+				reports={reports}
+				onConfigChange={setConfig}
 				onAdapterChange={(name) => {
 					const adapter = ADAPTERS.find((a) => a.name === name)
 					if (adapter) setCurrentAdapter(adapter)
@@ -92,10 +155,25 @@ export const App = () => {
 					const scenario = SCENARIOS.find((s) => s.name === name)
 					if (scenario) setCurrentScenario(scenario)
 				}}
-				onStart={startBenchmark}
+				onRunCurrent={() => runMatrix([currentAdapter], [currentScenario])}
+				onRunScenario={() => runMatrix(ADAPTERS, [currentScenario])}
+				onRunAdapter={() => runMatrix([currentAdapter], SCENARIOS)}
+				onRunAll={() => runMatrix(ADAPTERS, SCENARIOS)}
+				onCancel={() => abortRef.current?.abort()}
+				onReset={() => {
+					setReports([])
+					setProgressState((previous) => ({
+						...previous,
+						phase: 'idle',
+						currentIteration: 0,
+						currentStep: 0,
+						progress: 0,
+						elapsedMs: 0,
+						message: undefined,
+					}))
+				}}
 			/>
 
-			{/* Контур UI (Profiler) */}
 			<div style={{ height: 0, overflow: 'hidden' }}>
 				<ProfilerWrapper
 					id='benchmark-root'
@@ -105,7 +183,21 @@ export const App = () => {
 				</ProfilerWrapper>
 			</div>
 
-			{report && <ReportView report={report} scenario={currentScenario} />}
+			{reports.length > 0 && (
+				<ReportView
+					reports={reports}
+					report={reports[reports.length - 1]}
+					scenario={currentScenario}
+				/>
+			)}
 		</div>
 	)
+}
+
+const pageStyle: React.CSSProperties = {
+	padding: '30px',
+	maxWidth: '1280px',
+	margin: '0 auto',
+	fontFamily: 'Segoe UI, Roboto, sans-serif',
+	color: '#2f3437',
 }

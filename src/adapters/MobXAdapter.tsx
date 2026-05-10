@@ -7,6 +7,7 @@ import type React from 'react'
 class WideStore {
 	items: { id: string; value: number }[] = []
 	itemsById: Map<string, { id: string; value: number }> = new Map()
+	indexById: Map<string, number> = new Map()
 	version = 0
 
 	constructor() {
@@ -17,8 +18,12 @@ class WideStore {
 		this.items = state.items
 		this.version = state.version
 		this.itemsById.clear()
+		this.indexById.clear()
 		this.items.forEach((item) => {
 			this.itemsById.set(item.id, item)
+		})
+		this.items.forEach((item, idx) => {
+			this.indexById.set(item.id, idx)
 		})
 	}
 
@@ -28,26 +33,31 @@ class WideStore {
 			const newItem = { id: id!, value: newValue }
 			this.items.push(newItem)
 			this.itemsById.set(newItem.id, newItem)
+			this.indexById.set(newItem.id, this.items.length - 1)
 		} else if (type === 'REMOVE') {
-			if (targetId) {
-				const indexToRemove = this.items.findIndex(
-					(item) => item.id === targetId,
-				)
-				if (indexToRemove >= 0) {
-					this.items.splice(indexToRemove, 1)
-					this.itemsById.delete(targetId)
-				}
-			} else {
-				const removed = this.items.splice(index, 1)[0]
-				if (removed) this.itemsById.delete(removed.id)
+			const removeId = targetId ?? this.items[index]?.id
+			if (!removeId) return
+			const removeIndex = this.indexById.get(removeId)
+			if (removeIndex === undefined) return
+
+			const lastIndex = this.items.length - 1
+			const lastItem = this.items[lastIndex]
+			if (removeIndex !== lastIndex && lastItem) {
+				this.items[removeIndex] = lastItem
+				this.indexById.set(lastItem.id, removeIndex)
 			}
+			this.items.pop()
+			this.itemsById.delete(removeId)
+			this.indexById.delete(removeId)
 		} else {
 			// UPDATE
-			if (targetId) {
-				const item = this.itemsById.get(targetId)
-				if (item) item.value = newValue
-			} else if (this.items[index]) {
-				this.items[index].value = newValue
+			const updateId = targetId ?? this.items[index]?.id
+			if (!updateId) return
+			const item = this.itemsById.get(updateId)
+			if (item) item.value = newValue
+			const updateIndex = this.indexById.get(updateId)
+			if (updateIndex !== undefined && this.items[updateIndex]) {
+				this.items[updateIndex].value = newValue
 			}
 		}
 	}
@@ -83,5 +93,6 @@ export const MobXAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 	dispose: () => {
 		mobxStore.items = []
 		mobxStore.itemsById.clear()
+		mobxStore.indexById.clear()
 	},
 }

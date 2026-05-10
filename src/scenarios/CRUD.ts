@@ -14,7 +14,7 @@ export const CRUDScenario: Scenario<WideState, BenchmarkPayload> = {
 		})),
 		version: 0,
 	},
-	generatePayload: (i) => {
+	generatePayload: (i, seed) => {
 		if (i === 0) {
 			liveSize = INITIAL_SIZE
 			// Инициализируем список id
@@ -33,12 +33,12 @@ export const CRUDScenario: Scenario<WideState, BenchmarkPayload> = {
 			return {
 				type: 'ADD',
 				id: newId,
-				newValue: seedRandom(i + 13),
+				newValue: seedRandom(seed + i + 13),
 			}
 		}
 
 		if (op === 3) {
-			const removeIndex = Math.floor(seedRandom(i + 17) * liveSize)
+			const removeIndex = Math.floor(seedRandom(seed + i + 17) * liveSize)
 			const actualIndex = Math.min(removeIndex, liveSize - 1)
 			if (currentIds[actualIndex]) {
 				const removedId = currentIds[actualIndex]
@@ -57,17 +57,17 @@ export const CRUDScenario: Scenario<WideState, BenchmarkPayload> = {
 				type: 'UPDATE',
 				index: 0,
 				targetId: currentIds[0] || 'init-0',
-				newValue: seedRandom(i),
+				newValue: seedRandom(seed + i),
 			}
 		}
 
-		const updateIndex = Math.floor(seedRandom(i + 5) * liveSize)
+		const updateIndex = Math.floor(seedRandom(seed + i + 5) * liveSize)
 		const actualIndex = Math.min(updateIndex, Math.max(0, liveSize - 1))
 		return {
 			type: 'UPDATE',
 			index: actualIndex,
 			targetId: currentIds[actualIndex] || 'init-0',
-			newValue: seedRandom(i),
+			newValue: seedRandom(seed + i),
 		}
 	},
 	iterations: 10000,

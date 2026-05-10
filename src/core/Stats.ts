@@ -5,6 +5,7 @@ export const calculateRobustStats = (data: number[]): BenchmarkStats => {
 		return {
 			mean: 0,
 			median: 0,
+			min: 0,
 			p95: 0,
 			p99: 0,
 			max: 0,
@@ -28,6 +29,7 @@ export const calculateRobustStats = (data: number[]): BenchmarkStats => {
 	return {
 		mean,
 		median: sorted[Math.floor(sorted.length / 2)],
+		min: sorted[0],
 		p95: sorted[Math.max(0, p95Index)],
 		p99: sorted[Math.max(0, p99Index)],
 		max: sorted[sorted.length - 1],

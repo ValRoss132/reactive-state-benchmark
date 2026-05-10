@@ -1,15 +1,20 @@
 import React from 'react'
 import type { FullReport, Scenario } from '../core/types'
-import { exportToCSV } from '../utils/csvExport'
 import { ReportCard } from './ReportCard'
 import { MetricRow } from './MetricRow'
+import { exportReportsToCSV, exportReportsToJSON } from '../utils/exportResults'
 
 interface ReportViewProps {
 	report: FullReport
+	reports: FullReport[]
 	scenario: Scenario<any, any>
 }
 
-export const ReportView: React.FC<ReportViewProps> = ({ report, scenario }) => {
+export const ReportView: React.FC<ReportViewProps> = ({
+	report,
+	reports,
+	scenario,
+}) => {
 	return (
 		<div style={{ animation: 'fadeIn 0.5s ease-in' }}>
 			<h2 style={{ color: '#005bff' }}>
@@ -57,6 +62,10 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, scenario }) => {
 					<MetricRow
 						label='Медиана (Median):'
 						value={`${report.stateCore.median.toFixed(4)} ms`}
+					/>
+					<MetricRow
+						label='Минимум:'
+						value={`${report.stateCore.min.toFixed(4)} ms`}
 					/>
 					<MetricRow
 						label={<b>Стабильность (P99):</b>}
@@ -116,7 +125,8 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, scenario }) => {
 			>
 				<strong>💡 Интерпретация для выводов ВКР:</strong>
 				<br />
-				При выбранной нагрузке ({scenario.iterations} итераций), подход{' '}
+				При выбранной нагрузке ({report.config.iterations} измеряемых итераций
+				и {report.config.warmupIterations} прогревочных), подход{' '}
 				{report.adapterName} демонстрирует
 				{report.uiCoupled.p95 < 16
 					? ' высокий уровень отзывчивости (P95 < 16ms)'
@@ -124,6 +134,20 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, scenario }) => {
 				. Коэффициент вариации в {report.stateCore.cv.toFixed(1)}% указывает на{' '}
 				{report.stateCore.cv < 15 ? 'детерминированную' : 'стохастическую'}{' '}
 				природу вычислительных затрат.
+			</div>
+			<div
+				style={{
+					marginTop: '20px',
+					background: '#fff',
+					padding: '15px',
+					borderRadius: '8px',
+					border: '1px solid #e5e7eb',
+					fontSize: '14px',
+					lineHeight: '1.6',
+				}}
+			>
+				<strong>Сводка запусков:</strong> {reports.length} отчетов. Последний:
+				{` ${report.adapterName} / ${scenario.name}`}, seed {report.config.seed}.
 			</div>
 			{/* Кнопка экспорта для ВКР */}
 			<div
@@ -136,7 +160,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, scenario }) => {
 				}}
 			>
 				<button
-					onClick={() => exportToCSV(report)}
+					onClick={() => exportReportsToCSV(reports)}
 					style={{
 						padding: '10px 25px',
 						border: 'none',
@@ -153,6 +177,22 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, scenario }) => {
 					}}
 				>
 					<span>💾</span> Экспортировать результаты (CSV)
+				</button>
+				<button
+					onClick={() => exportReportsToJSON(reports)}
+					style={{
+						padding: '10px 25px',
+						border: 'none',
+						borderRadius: '6px',
+						color: '#fff',
+						fontWeight: 'bold',
+						cursor: 'pointer',
+						transition: 'all 0.2s',
+						backgroundColor: '#475569',
+						marginLeft: '10px',
+					}}
+				>
+					Экспортировать JSON
 				</button>
 			</div>
 		</div>

@@ -12,10 +12,10 @@ export const WideUpdateScenario: Scenario<WideState, BenchmarkPayload> = {
 		version: 0,
 	},
 
-	generatePayload: (iteration) => ({
+	generatePayload: (iteration, seed) => ({
 		index: iteration % 1000,
 		targetId: (iteration % 1000).toString(),
-		newValue: seedRandom(iteration),
+		newValue: seedRandom(seed + iteration),
 	}),
 
 	iterations: 10000,

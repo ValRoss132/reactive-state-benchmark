@@ -7,11 +7,13 @@ import React from 'react'
 
 interface ExtendedWideState extends WideState {
 	itemsById: Record<string, { id: string; value: number }>
+	indexById: Record<string, number>
 }
 
 const defaultState: ExtendedWideState = {
 	items: [],
 	itemsById: {},
+	indexById: {},
 	version: 0,
 }
 
@@ -23,8 +25,12 @@ const wideSlice = createSlice({
 			state.items = action.payload.items
 			state.version = action.payload.version
 			state.itemsById = {}
+			state.indexById = {}
 			action.payload.items.forEach((item) => {
 				state.itemsById[item.id] = item
+			})
+			action.payload.items.forEach((item, idx) => {
+				state.indexById[item.id] = idx
 			})
 		},
 		processPayload: (state, action: PayloadAction<BenchmarkPayload>) => {
@@ -33,23 +39,30 @@ const wideSlice = createSlice({
 				const newItem = { id: id!, value: newValue }
 				state.items.push(newItem)
 				state.itemsById[newItem.id] = newItem
+				state.indexById[newItem.id] = state.items.length - 1
 			} else if (type === 'REMOVE') {
-				if (targetId) {
-					state.items = state.items.filter((item) => item.id !== targetId)
-					delete state.itemsById[targetId]
-				} else {
-					const removed = state.items.splice(index, 1)[0]
-					if (removed) delete state.itemsById[removed.id]
+				const removeId = targetId ?? state.items[index]?.id
+				if (!removeId) return
+				const removeIndex = state.indexById[removeId]
+				if (removeIndex === undefined) return
+
+				const lastIndex = state.items.length - 1
+				const lastItem = state.items[lastIndex]
+				if (removeIndex !== lastIndex && lastItem) {
+					state.items[removeIndex] = lastItem
+					state.indexById[lastItem.id] = removeIndex
 				}
+				state.items.pop()
+				delete state.itemsById[removeId]
+				delete state.indexById[removeId]
 			} else {
 				// UPDATE
-				if (targetId && state.itemsById[targetId]) {
-					state.itemsById[targetId].value = newValue
-					const idx = state.items.findIndex((item) => item.id === targetId)
-					if (idx !== -1) state.items[idx].value = newValue
-				} else if (state.items[index]) {
-					state.items[index].value = newValue
-					state.itemsById[state.items[index].id].value = newValue
+				const updateId = targetId ?? state.items[index]?.id
+				if (!updateId || !state.itemsById[updateId]) return
+				state.itemsById[updateId].value = newValue
+				const updateIndex = state.indexById[updateId]
+				if (updateIndex !== undefined && state.items[updateIndex]) {
+					state.items[updateIndex].value = newValue
 				}
 			}
 		},
@@ -89,7 +102,9 @@ export const ReduxAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 		return <div data-perf-value={value} style={{ display: 'none' }} />
 	},
 
-	dispose: () => {},
+	dispose: () => {
+		store.dispatch(wideSlice.actions.setInitialState(defaultState))
+	},
 }
 
 export const ReduxProvider = ({ children }: { children: React.ReactNode }) => (

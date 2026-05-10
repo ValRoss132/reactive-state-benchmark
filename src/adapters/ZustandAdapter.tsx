@@ -4,11 +4,13 @@ import type { BenchmarkPayload, WideState } from '../core/types'
 
 interface ExtendedWideState extends WideState {
 	itemsById: Record<string, { id: string; value: number }>
+	indexById: Record<string, number>
 }
 
 const useStore = create<ExtendedWideState>(() => ({
 	items: [],
 	itemsById: {},
+	indexById: {},
 	version: 0,
 }))
 
@@ -17,10 +19,14 @@ export const ZustandAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 
 	init: (initialData) => {
 		const itemsById: Record<string, { id: string; value: number }> = {}
+		const indexById: Record<string, number> = {}
 		initialData.items.forEach((item) => {
 			itemsById[item.id] = item
 		})
-		useStore.setState({ ...initialData, itemsById })
+		initialData.items.forEach((item, idx) => {
+			indexById[item.id] = idx
+		})
+		useStore.setState({ ...initialData, itemsById, indexById })
 	},
 
 	update: (payload: BenchmarkPayload) => {
@@ -29,43 +35,49 @@ export const ZustandAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 		useStore.setState((state) => {
 			if (type === 'ADD') {
 				const newItem = { id: id!, value: newValue }
+				const nextIndex = state.items.length
 				return {
 					items: [...state.items, newItem],
 					itemsById: { ...state.itemsById, [newItem.id]: newItem },
+					indexById: { ...state.indexById, [newItem.id]: nextIndex },
 				}
 			}
 			if (type === 'REMOVE') {
-				const newById = { ...state.itemsById }
-				let newItems = state.items
+				const removeId = targetId ?? state.items[index]?.id
+				if (!removeId) return state
 
-				if (targetId) {
-					newItems = state.items.filter((item) => item.id !== targetId)
-					delete newById[targetId]
-				} else {
-					const removed = state.items[index]
-					if (removed) {
-						delete newById[removed.id]
-						newItems = state.items.filter((_, i) => i !== index)
-					}
+				const removeIndex = state.indexById[removeId]
+				if (removeIndex === undefined) return state
+
+				const newItems = [...state.items]
+				const newById = { ...state.itemsById }
+				const newIndexById = { ...state.indexById }
+
+				const lastIndex = newItems.length - 1
+				const lastItem = newItems[lastIndex]
+				if (removeIndex !== lastIndex && lastItem) {
+					newItems[removeIndex] = lastItem
+					newIndexById[lastItem.id] = removeIndex
 				}
-				return { items: newItems, itemsById: newById }
+				newItems.pop()
+				delete newById[removeId]
+				delete newIndexById[removeId]
+
+				return { items: newItems, itemsById: newById, indexById: newIndexById }
 			}
 
 			// UPDATE
 			const newItems = [...state.items]
 			const newById = { ...state.itemsById }
+			const updateId = targetId ?? state.items[index]?.id
+			if (!updateId || !newById[updateId]) return state
 
-			if (targetId && state.itemsById[targetId]) {
-				const updatedItem = { ...state.itemsById[targetId], value: newValue }
-				newById[targetId] = updatedItem
-				const itemIndex = newItems.findIndex((item) => item.id === targetId)
-				if (itemIndex >= 0) newItems[itemIndex] = updatedItem
-			} else if (newItems[index]) {
-				const updatedItem = { ...newItems[index], value: newValue }
-				newItems[index] = updatedItem
-				newById[updatedItem.id] = updatedItem
-			}
-			return { items: newItems, itemsById: newById }
+			const updateIndex = state.indexById[updateId]
+			const updatedItem = { ...newById[updateId], value: newValue }
+			newById[updateId] = updatedItem
+			if (updateIndex !== undefined) newItems[updateIndex] = updatedItem
+
+			return { items: newItems, itemsById: newById, indexById: state.indexById }
 		})
 	},
 
@@ -81,6 +93,6 @@ export const ZustandAdapter: StateAdapter<WideState, BenchmarkPayload> = {
 	},
 
 	dispose: () => {
-		useStore.setState({ items: [], itemsById: {}, version: 0 })
+		useStore.setState({ items: [], itemsById: {}, indexById: {}, version: 0 })
 	},
 }
