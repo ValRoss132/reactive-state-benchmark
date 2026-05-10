@@ -1,5 +1,6 @@
 import { flushSync } from 'react-dom'
 import { calculateRobustStats } from './Stats'
+import { getScenarioInitialState } from './config'
 import { captureEnvironmentInfo, getRuntimeFlags } from './environment'
 import { createProgressState } from './progress'
 import type {
@@ -26,10 +27,10 @@ function verifyAdapterConsistency<S, P>(
 		const results: unknown[] = []
 		for (let i = 0; i < 2; i++) {
 			adapter.dispose()
-			adapter.init(cloneState(scenario.initialState))
+			adapter.init(cloneState(getScenarioInitialState(scenario, config)))
 
 			for (let j = 0; j < numOperations; j++) {
-				adapter.update(scenario.generatePayload(j, config.seed))
+				adapter.update(scenario.generatePayload(j, config.seed, config))
 			}
 
 			results.push(adapter.peek())
@@ -115,11 +116,11 @@ export class BenchmarkEngine {
 		}
 
 		const payloads = Array.from({ length: totalIterations }, (_, index) =>
-			scenario.generatePayload(index, config.seed),
+			scenario.generatePayload(index, config.seed, config),
 		)
 
 		adapter.dispose()
-		adapter.init(cloneState(scenario.initialState))
+		adapter.init(cloneState(getScenarioInitialState(scenario, config)))
 
 		const updateTimePerOp: number[] = []
 		const renderTimePerOp: number[] = []
@@ -131,7 +132,7 @@ export class BenchmarkEngine {
 
 		for (let run = 0; run < config.measurementRuns; run++) {
 			adapter.dispose()
-			adapter.init(cloneState(scenario.initialState))
+			adapter.init(cloneState(getScenarioInitialState(scenario, config)))
 
 			for (let i = 0; i < config.warmupIterations; i++) {
 				checkAbort()

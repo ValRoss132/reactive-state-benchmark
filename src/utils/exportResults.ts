@@ -25,6 +25,9 @@ export const buildMarkdownSummary = (reports: FullReport[]) => {
 			report.config.iterations,
 			report.config.warmupIterations,
 			report.config.measurementRuns,
+			report.config.initialSize,
+			report.config.subscriberCount,
+			`${report.config.operationMix.update}/${report.config.operationMix.add}/${report.config.operationMix.remove}`,
 			report.config.seed,
 			report.stateCore.mean.toFixed(6),
 			report.stateCore.median.toFixed(6),
@@ -35,8 +38,8 @@ export const buildMarkdownSummary = (reports: FullReport[]) => {
 	)
 
 	return [
-		'| Adapter | Scenario | Iterations | Warmup | Runs | Seed | Mean, ms | Median, ms | P95, ms | P99, ms | Ops/s |',
-		'|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|',
+		'| Adapter | Scenario | Iterations | Warmup | Runs | Initial size | Subscribers | Mix | Seed | Mean, ms | Median, ms | P95, ms | P99, ms | Ops/s |',
+		'|---|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|',
 		...rows.map((row) => `| ${row} |`),
 	].join('\n')
 }
@@ -64,6 +67,9 @@ export const exportReportsToCSV = (reports: FullReport[]) => {
 		'iterations',
 		'warmupIterations',
 		'measurementRuns',
+		'initialSize',
+		'subscriberCount',
+		'operationMix',
 		'seed',
 		'mean',
 		'median',
@@ -86,6 +92,9 @@ export const exportReportsToCSV = (reports: FullReport[]) => {
 		report.config.iterations,
 		report.config.warmupIterations,
 		report.config.measurementRuns,
+		report.config.initialSize,
+		report.config.subscriberCount,
+		`${report.config.operationMix.update}/${report.config.operationMix.add}/${report.config.operationMix.remove}`,
 		report.config.seed,
 		report.stateCore.mean,
 		report.stateCore.median,

@@ -1,17 +1,20 @@
 import type { BenchmarkPayload, Scenario, WideState } from '../core/types'
 import { seedRandom } from '../utils/seedRandom'
 
+const createAsyncState = (size: number): WideState => ({
+	items: Array.from({ length: size }, (_, i) => ({
+		id: i.toString(),
+		value: 0,
+	})),
+	version: 0,
+})
+
 export const AsyncScenario: Scenario<WideState, BenchmarkPayload> = {
 	name: 'High-Frequency Async Stream',
-	initialState: {
-		items: Array.from({ length: 1000 }, (_, i) => ({
-			id: i.toString(),
-			value: 0,
-		})),
-		version: 0,
-	},
-	generatePayload: (iteration, seed) => {
-		const targetIndex = Math.floor(seedRandom(seed + iteration) * 1000)
+	initialState: createAsyncState(1000),
+	createInitialState: (config) => createAsyncState(config.initialSize),
+	generatePayload: (iteration, seed, config) => {
+		const targetIndex = Math.floor(seedRandom(seed + iteration) * config.initialSize)
 		return {
 			index: targetIndex,
 			targetId: targetIndex.toString(),

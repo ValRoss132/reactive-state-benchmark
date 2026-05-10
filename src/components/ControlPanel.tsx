@@ -12,6 +12,12 @@ import {
 	exportReportsToJSON,
 	copyMarkdownSummary,
 } from '../utils/exportResults'
+import {
+	clearExperimentConfigPreset,
+	DEFAULT_EXPERIMENT_CONFIG,
+	normalizeExperimentConfig,
+	saveExperimentConfigPreset,
+} from '../core/presets'
 
 interface ControlPanelProps {
 	adapters: StateAdapter<any, any>[]
@@ -37,6 +43,11 @@ interface ControlPanelProps {
 const positiveInt = (value: string, fallback: number) => {
 	const parsed = Number(value)
 	return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
+}
+
+const nonNegativeInt = (value: string, fallback: number) => {
+	const parsed = Number(value)
+	return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback
 }
 
 const formatMs = (value?: number) => {
@@ -66,7 +77,19 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 	onReset,
 }) => {
 	const updateConfig = (patch: Partial<ExperimentConfig>) =>
-		onConfigChange({ ...config, ...patch })
+		onConfigChange(normalizeExperimentConfig({ ...config, ...patch }))
+	const updateOperationMix = (
+		key: keyof ExperimentConfig['operationMix'],
+		value: string,
+	) =>
+		updateConfig({
+			operationMix: {
+				...config.operationMix,
+				[key]: nonNegativeInt(value, config.operationMix[key]),
+			},
+		})
+	const mixTotal =
+		config.operationMix.update + config.operationMix.add + config.operationMix.remove
 
 	return (
 		<div style={panelStyle}>
@@ -153,6 +176,40 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 						/>
 					</label>
 					<label style={fieldStyle}>
+						<span style={labelStyle}>Initial size</span>
+						<input
+							disabled={isRunning}
+							type='number'
+							min={1}
+							value={config.initialSize}
+							onChange={(event) =>
+								updateConfig({
+									initialSize: positiveInt(event.target.value, config.initialSize),
+								})
+							}
+							style={inputStyle}
+						/>
+					</label>
+					<label style={fieldStyle}>
+						<span style={labelStyle}>Subscribers</span>
+						<input
+							disabled={isRunning}
+							type='number'
+							min={0}
+							max={config.initialSize}
+							value={config.subscriberCount}
+							onChange={(event) =>
+								updateConfig({
+									subscriberCount: nonNegativeInt(
+										event.target.value,
+										config.subscriberCount,
+									),
+								})
+							}
+							style={inputStyle}
+						/>
+					</label>
+					<label style={fieldStyle}>
 						<span style={labelStyle}>Seed</span>
 						<input
 							disabled={isRunning}
@@ -164,6 +221,46 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 							style={inputStyle}
 						/>
 					</label>
+					<label style={fieldStyle}>
+						<span style={labelStyle}>Update %</span>
+						<input
+							disabled={isRunning}
+							type='number'
+							min={0}
+							value={config.operationMix.update}
+							onChange={(event) => updateOperationMix('update', event.target.value)}
+							style={inputStyle}
+						/>
+					</label>
+					<label style={fieldStyle}>
+						<span style={labelStyle}>Add %</span>
+						<input
+							disabled={isRunning}
+							type='number'
+							min={0}
+							value={config.operationMix.add}
+							onChange={(event) => updateOperationMix('add', event.target.value)}
+							style={inputStyle}
+						/>
+					</label>
+					<label style={fieldStyle}>
+						<span style={labelStyle}>Remove %</span>
+						<input
+							disabled={isRunning}
+							type='number'
+							min={0}
+							value={config.operationMix.remove}
+							onChange={(event) =>
+								updateOperationMix('remove', event.target.value)
+							}
+							style={inputStyle}
+						/>
+					</label>
+				</div>
+				<div style={hintStyle}>
+					Operation mix total: {mixTotal}. Remove operations are generated only
+					when the CRUD live set is non-empty; otherwise the generator emits a
+					safe add operation.
 				</div>
 				<div style={buttonRowStyle}>
 					<button disabled={isRunning} onClick={onRunCurrent} style={buttonStyle}>
@@ -183,6 +280,26 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 					</button>
 					<button disabled={isRunning} onClick={onReset} style={mutedButtonStyle}>
 						Reset
+					</button>
+					<button
+						disabled={isRunning}
+						onClick={() => saveExperimentConfigPreset(config)}
+						style={mutedButtonStyle}
+					>
+						Save preset
+					</button>
+					<button
+						disabled={isRunning}
+						onClick={() => {
+							clearExperimentConfigPreset()
+							onConfigChange({
+								...DEFAULT_EXPERIMENT_CONFIG,
+								seed: Date.now() % 1000000,
+							})
+						}}
+						style={mutedButtonStyle}
+					>
+						Clear preset
 					</button>
 				</div>
 			</section>
@@ -207,6 +324,12 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 						{progressState.totalIterations}
 					</span>
 					<span>Runs: {config.measurementRuns}</span>
+					<span>Initial size: {config.initialSize}</span>
+					<span>Subscribers: {config.subscriberCount}</span>
+					<span>
+						CRUD mix: {config.operationMix.update}/{config.operationMix.add}/
+						{config.operationMix.remove}
+					</span>
 					<span>
 						Step: {progressState.currentStep}/{progressState.totalSteps}
 					</span>
@@ -389,4 +512,10 @@ const errorStyle: React.CSSProperties = {
 	...warningStyle,
 	background: '#fee2e2',
 	border: '1px solid #ef4444',
+}
+
+const hintStyle: React.CSSProperties = {
+	marginTop: '10px',
+	fontSize: '12px',
+	color: '#475569',
 }

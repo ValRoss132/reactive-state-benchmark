@@ -18,7 +18,9 @@ import { AsyncScenario } from './scenarios/Async'
 import { Header } from './components/Header'
 import { ControlPanel } from './components/ControlPanel'
 import { ReportView } from './components/ReportView'
+import { getVisibleSubscriberIds } from './core/config'
 import { captureEnvironmentInfo } from './core/environment'
+import { loadExperimentConfigPreset } from './core/presets'
 
 const SCENARIOS: Scenario<any, any>[] = [
 	WideUpdateScenario,
@@ -33,10 +35,13 @@ const ADAPTERS: StateAdapter<any, any>[] = [
 ]
 
 const makeDefaultConfig = (): ExperimentConfig => ({
-	iterations: 10000,
-	warmupIterations: 1000,
-	measurementRuns: DEFAULT_MEASUREMENT_RUNS,
-	seed: Date.now() % 1000000,
+	...(() => {
+		const preset = loadExperimentConfigPreset()
+		return {
+			...preset,
+			measurementRuns: preset.measurementRuns || DEFAULT_MEASUREMENT_RUNS,
+		}
+	})(),
 })
 
 const waitForReact = () => new Promise((resolve) => requestAnimationFrame(resolve))
@@ -117,13 +122,11 @@ export const App = () => {
 	}
 
 	const subscribers = useMemo(() => {
-		const items = (currentScenario.initialState as any).items as {
-			id: string
-		}[]
-		return items.map((item) => (
-			<currentAdapter.Subscriber key={item.id} id={item.id} />
+		const ids = getVisibleSubscriberIds(currentScenario, config)
+		return ids.map((id) => (
+			<currentAdapter.Subscriber key={id} id={id} />
 		))
-	}, [currentAdapter, currentScenario])
+	}, [currentAdapter, currentScenario, config])
 
 	const renderWithProvider = (content: React.ReactNode) => {
 		if (currentAdapter.name === 'Redux Toolkit') {

@@ -1,73 +1,96 @@
-import type { Scenario, WideState, BenchmarkPayload } from '../core/types'
+import type {
+	Scenario,
+	WideState,
+	BenchmarkPayload,
+	ExperimentConfig,
+} from '../core/types'
+import { normalizeOperationMix } from '../core/config'
 import { seedRandom } from '../utils/seedRandom'
 
-const INITIAL_SIZE = 1000
-let liveSize = INITIAL_SIZE
-let currentIds: string[] = []
+const createCrudState = (size: number): WideState => ({
+	items: Array.from({ length: size }, (_, i) => ({
+		id: `init-${i}`,
+		value: i,
+	})),
+	version: 0,
+})
+
+const stateBySignature = new Map<string, string[]>()
+
+const getSignature = (config: ExperimentConfig, seed: number) =>
+	[
+		seed,
+		config.initialSize,
+		config.operationMix.update,
+		config.operationMix.add,
+		config.operationMix.remove,
+	].join(':')
+
+const resolveOperation = (
+	iteration: number,
+	seed: number,
+	config: ExperimentConfig,
+) => {
+	const mix = normalizeOperationMix(config.operationMix)
+	const total = mix.update + mix.add + mix.remove
+	const roll = seedRandom(seed + iteration + 31) * total
+
+	if (roll < mix.update) return 'UPDATE'
+	if (roll < mix.update + mix.add) return 'ADD'
+	return 'REMOVE'
+}
 
 export const CRUDScenario: Scenario<WideState, BenchmarkPayload> = {
 	name: 'CRUD Homeostasis',
-	initialState: {
-		items: Array.from({ length: INITIAL_SIZE }, (_, i) => ({
-			id: `init-${i}`,
-			value: i,
-		})),
-		version: 0,
-	},
-	generatePayload: (i, seed) => {
-		if (i === 0) {
-			liveSize = INITIAL_SIZE
-			// Инициализируем список id
-			currentIds = Array.from(
-				{ length: INITIAL_SIZE },
-				(_, idx) => `init-${idx}`,
+	initialState: createCrudState(1000),
+	createInitialState: (config) => createCrudState(config.initialSize),
+	generatePayload: (iteration, seed, config) => {
+		const signature = getSignature(config, seed)
+
+		if (iteration === 0 || !stateBySignature.has(signature)) {
+			stateBySignature.set(
+				signature,
+				Array.from({ length: config.initialSize }, (_, idx) => `init-${idx}`),
 			)
 		}
 
-		const op = i % 4
+		const currentIds = stateBySignature.get(signature)!
+		const operation = resolveOperation(iteration, seed, config)
 
-		if (op === 1) {
-			liveSize += 1
-			const newId = `added-${i}`
+		if (operation === 'ADD' || currentIds.length === 0) {
+			const newId = `added-${seed}-${iteration}`
 			currentIds.push(newId)
 			return {
 				type: 'ADD',
 				id: newId,
-				newValue: seedRandom(seed + i + 13),
+				newValue: seedRandom(seed + iteration + 13),
 			}
 		}
 
-		if (op === 3) {
-			const removeIndex = Math.floor(seedRandom(seed + i + 17) * liveSize)
-			const actualIndex = Math.min(removeIndex, liveSize - 1)
-			if (currentIds[actualIndex]) {
-				const removedId = currentIds[actualIndex]
-				currentIds.splice(actualIndex, 1)
-				liveSize = Math.max(INITIAL_SIZE, liveSize - 1)
-				return {
-					type: 'REMOVE',
-					index: actualIndex,
-					targetId: removedId,
-					newValue: 0,
-				}
-			}
-			// Fallback
-			liveSize = Math.max(INITIAL_SIZE, liveSize - 1)
+		if (operation === 'REMOVE') {
+			const removeIndex = Math.floor(
+				seedRandom(seed + iteration + 17) * currentIds.length,
+			)
+			const removedId = currentIds[removeIndex]
+			currentIds[removeIndex] = currentIds[currentIds.length - 1]
+			currentIds.pop()
 			return {
-				type: 'UPDATE',
-				index: 0,
-				targetId: currentIds[0] || 'init-0',
-				newValue: seedRandom(seed + i),
+				type: 'REMOVE',
+				index: removeIndex,
+				targetId: removedId,
+				newValue: 0,
 			}
 		}
 
-		const updateIndex = Math.floor(seedRandom(seed + i + 5) * liveSize)
-		const actualIndex = Math.min(updateIndex, Math.max(0, liveSize - 1))
+		const updateIndex = Math.floor(
+			seedRandom(seed + iteration + 5) * currentIds.length,
+		)
+
 		return {
 			type: 'UPDATE',
-			index: actualIndex,
-			targetId: currentIds[actualIndex] || 'init-0',
-			newValue: seedRandom(seed + i),
+			index: updateIndex,
+			targetId: currentIds[updateIndex],
+			newValue: seedRandom(seed + iteration),
 		}
 	},
 	iterations: 10000,

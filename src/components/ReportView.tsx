@@ -126,7 +126,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
 				<strong>💡 Интерпретация для выводов ВКР:</strong>
 				<br />
 				При выбранной нагрузке ({report.config.iterations} измеряемых итераций
-				и {report.config.warmupIterations} прогревочных), подход{' '}
+				и {report.config.warmupIterations} прогревочных,{' '}
+				{report.config.measurementRuns} прогонов), подход{' '}
 				{report.adapterName} демонстрирует
 				{report.uiCoupled.p95 < 16
 					? ' высокий уровень отзывчивости (P95 < 16ms)'
@@ -148,6 +149,10 @@ export const ReportView: React.FC<ReportViewProps> = ({
 			>
 				<strong>Сводка запусков:</strong> {reports.length} отчетов. Последний:
 				{` ${report.adapterName} / ${scenario.name}`}, seed {report.config.seed}.
+				Размер состояния: {report.config.initialSize}, подписчиков:{' '}
+				{report.config.subscriberCount}, CRUD mix:{' '}
+				{report.config.operationMix.update}/{report.config.operationMix.add}/
+				{report.config.operationMix.remove}.
 			</div>
 			{/* Кнопка экспорта для ВКР */}
 			<div

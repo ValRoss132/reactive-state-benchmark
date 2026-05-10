@@ -47,6 +47,13 @@ export type ExperimentConfig = {
 	iterations: number
 	warmupIterations: number
 	measurementRuns: number
+	initialSize: number
+	subscriberCount: number
+	operationMix: {
+		update: number
+		add: number
+		remove: number
+	}
 	seed: number
 }
 
@@ -86,7 +93,12 @@ export type StateAdapter<TState, TPayload> = {
 export type Scenario<TState, TPayload> = {
 	name: string
 	initialState: TState
-	generatePayload: (iteration: number, seed: number) => TPayload
+	createInitialState?: (config: ExperimentConfig) => TState
+	generatePayload: (
+		iteration: number,
+		seed: number,
+		config: ExperimentConfig,
+	) => TPayload
 	iterations: number
 	warmupRuns: number
 }
