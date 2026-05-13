@@ -72,6 +72,8 @@ export const App = () => {
 		scenarioName: currentScenario.name,
 		currentIteration: 0,
 		totalIterations: config.iterations + config.warmupIterations,
+		currentRun: 0,
+		totalRuns: config.measurementRuns,
 		currentStep: 0,
 		totalSteps: config.measurementRuns * (config.iterations + config.warmupIterations),
 		progress: 0,
@@ -108,6 +110,7 @@ export const App = () => {
 			config,
 			environment,
 		})
+		const matrixStartedAt = performance.now()
 
 		updateSessions((previous) => [activeSession, ...previous])
 		setIsRunning(true)
@@ -132,6 +135,7 @@ export const App = () => {
 							abortRef.current.signal,
 							stepOffset,
 							totalSteps,
+							matrixStartedAt,
 						)
 						activeSession = appendResultToSession(
 							activeSession,
@@ -259,6 +263,7 @@ export const App = () => {
 								...previous,
 								phase: 'idle',
 								currentIteration: 0,
+								currentRun: 0,
 								currentStep: 0,
 								progress: 0,
 								elapsedMs: 0,

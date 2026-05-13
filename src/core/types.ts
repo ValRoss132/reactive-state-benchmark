@@ -82,6 +82,8 @@ export type ProgressState = {
 	scenarioName: string
 	currentIteration: number
 	totalIterations: number
+	currentRun: number
+	totalRuns: number
 	currentStep: number
 	totalSteps: number
 	progress: number

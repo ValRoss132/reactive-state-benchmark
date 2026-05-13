@@ -3,6 +3,8 @@ import type {
 	AdapterGroup,
 	BenchmarkResult,
 	BenchmarkRunSession,
+	RunKind,
+	RunStatus,
 } from '../core/types'
 import { exportReportsToCSV, exportReportsToJSON } from '../utils/exportResults'
 
@@ -15,7 +17,14 @@ type ViewMode = 'grouped' | 'scenario' | 'flat'
 const groupLabels: Record<AdapterGroup, string> = {
 	'state-core': 'State-core',
 	'ui-coupled': 'UI-coupled',
-	other: 'Unknown / Other',
+	other: 'Неизвестно / другое',
+}
+
+const kindLabels: Record<RunKind, string> = {
+	single: 'один запуск',
+	scenario: 'сценарий',
+	adapter: 'адаптер',
+	all: 'вся матрица',
 }
 
 const formatMs = (value?: number) =>
@@ -29,6 +38,48 @@ const formatDuration = (value: number) => {
 		.toString()
 		.padStart(2, '0')}`
 }
+
+const statusLabels: Record<RunStatus | BenchmarkResult['status'], string> = {
+	running: 'выполняется',
+	completed: 'завершено',
+	completed_with_errors: 'завершено с ошибками',
+	failed: 'ошибка',
+	cancelled: 'отменено',
+}
+
+const statusColors: Record<RunStatus | BenchmarkResult['status'], React.CSSProperties> = {
+	running: {
+		background: '#e0f2fe',
+		borderColor: '#38bdf8',
+		color: '#075985',
+	},
+	completed: {
+		background: '#dcfce7',
+		borderColor: '#22c55e',
+		color: '#166534',
+	},
+	completed_with_errors: {
+		background: '#fef3c7',
+		borderColor: '#f59e0b',
+		color: '#92400e',
+	},
+	failed: {
+		background: '#fee2e2',
+		borderColor: '#ef4444',
+		color: '#991b1b',
+	},
+	cancelled: {
+		background: '#fee2e2',
+		borderColor: '#f87171',
+		color: '#991b1b',
+	},
+}
+
+const StatusBadge = ({ status }: { status: RunStatus | BenchmarkResult['status'] }) => (
+	<span style={{ ...statusBadgeStyle, ...statusColors[status] }}>
+		{statusLabels[status]}
+	</span>
+)
 
 const sortResults = (results: BenchmarkResult[]) =>
 	[...results].sort(
@@ -48,17 +99,17 @@ const ResultTable = ({
 	<table style={tableStyle}>
 		<thead>
 			<tr>
-				<th style={thStyle}>Group</th>
-				<th style={thStyle}>Adapter</th>
-				<th style={thStyle}>Scenario</th>
-				<th style={thStyle}>Status</th>
-				<th style={thStyle}>Mean</th>
-				<th style={thStyle}>Median</th>
+				<th style={thStyle}>Группа</th>
+				<th style={thStyle}>Адаптер</th>
+				<th style={thStyle}>Сценарий</th>
+				<th style={thStyle}>Статус</th>
+				<th style={thStyle}>Среднее</th>
+				<th style={thStyle}>Медиана</th>
 				<th style={thStyle}>P95</th>
 				<th style={thStyle}>P99</th>
 				<th style={thStyle}>CV</th>
 				<th style={thStyle}>Ops/s</th>
-				<th style={thStyle}>Error</th>
+				<th style={thStyle}>Ошибка</th>
 			</tr>
 		</thead>
 		<tbody>
@@ -72,7 +123,7 @@ const ResultTable = ({
 						<td style={tdStyle}>{metricGroup ? groupLabels[metricGroup] : groupLabels[result.adapterGroup]}</td>
 						<td style={tdStyle}>{result.adapter}</td>
 						<td style={tdStyle}>{result.scenario}</td>
-						<td style={tdStyle}>{result.status}</td>
+						<td style={tdStyle}><StatusBadge status={result.status} /></td>
 						<td style={tdStyle}>{formatMs(stats?.mean)}</td>
 						<td style={tdStyle}>{formatMs(stats?.median)}</td>
 						<td style={tdStyle}>{formatMs(stats?.p95)}</td>
@@ -161,8 +212,8 @@ export const ReportView: React.FC<ReportViewProps> = ({ sessions }) => {
 	if (sessions.length === 0) {
 		return (
 			<div style={emptyStyle}>
-				<h2>Results</h2>
-				<p>Run a benchmark to create a session history.</p>
+				<h2>Результаты</h2>
+				<p>Запустите benchmark, чтобы создать историю session.</p>
 			</div>
 		)
 	}
@@ -176,15 +227,17 @@ export const ReportView: React.FC<ReportViewProps> = ({ sessions }) => {
 				<div style={summaryGridStyle}>
 					<span>Всего сессий: {sessions.length}</span>
 					<span>Последний запуск: {latest.title}</span>
-					<span>Тип: {latest.kind}</span>
+					<span>Тип: {kindLabels[latest.kind]}</span>
 					<span>
-						Состав: {latest.summary.adaptersCount} адаптера x{' '}
-						{latest.summary.scenariosCount} сценария ={' '}
+						Состав: {latest.summary.adaptersCount} адаптеров x{' '}
+						{latest.summary.scenariosCount} сценариев ={' '}
 						{latest.summary.totalResults} результатов
 					</span>
 					<span>Успешно: {latest.summary.successfulResults}</span>
 					<span>Ошибок: {latest.summary.failedResults}</span>
-					<span>Статус: {latest.status}</span>
+					<span>
+						Статус: <StatusBadge status={latest.status} />
+					</span>
 					<span>Длительность: {formatDuration(latest.summary.durationMs)}</span>
 					<span>Время запуска: {new Date(latest.startedAt).toLocaleString()}</span>
 				</div>
@@ -192,25 +245,25 @@ export const ReportView: React.FC<ReportViewProps> = ({ sessions }) => {
 
 			<div style={toolbarStyle}>
 				<label>
-					View:{' '}
+					Вид:{' '}
 					<select
 						value={viewMode}
 						onChange={(event) => setViewMode(event.target.value as ViewMode)}
 						style={selectStyle}
 					>
-						<option value='grouped'>Grouped</option>
-						<option value='scenario'>By scenario</option>
-						<option value='flat'>Flat</option>
+						<option value='grouped'>По группам</option>
+						<option value='scenario'>По сценариям</option>
+						<option value='flat'>Таблица</option>
 					</select>
 				</label>
 				<label>
-					History:{' '}
+					История:{' '}
 					<select
 						value={selectedSessionId}
 						onChange={(event) => setSelectedSessionId(event.target.value)}
 						style={selectStyle}
 					>
-						<option value='all'>All sessions</option>
+						<option value='all'>Все session</option>
 						{sessions.map((session) => (
 							<option key={session.id} value={session.id}>
 								{session.title} · {new Date(session.startedAt).toLocaleString()}
@@ -219,7 +272,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ sessions }) => {
 					</select>
 				</label>
 				<div style={adapterFilterStyle}>
-					<span>Adapters:</span>
+					<span>Адаптеры:</span>
 					{allAdapters.map((adapter) => (
 						<label key={adapter} style={checkboxLabelStyle}>
 							<input
@@ -247,13 +300,13 @@ export const ReportView: React.FC<ReportViewProps> = ({ sessions }) => {
 					onClick={() => exportReportsToCSV(selectedSessions)}
 					style={buttonStyle}
 				>
-					Export selected CSV
+					Экспорт выбранного CSV
 				</button>
 				<button
 					onClick={() => exportReportsToJSON(selectedSessions)}
 					style={buttonStyle}
 				>
-					Export selected JSON
+					Экспорт выбранного JSON
 				</button>
 			</div>
 
@@ -274,16 +327,17 @@ export const ReportView: React.FC<ReportViewProps> = ({ sessions }) => {
 						>
 							<span>{expanded ? '▼' : '▶'} {session.title}</span>
 							<span>
-								{session.status} · {session.summary.successfulResults}/
-								{session.summary.totalResults} successful ·{' '}
+								<StatusBadge status={session.status} /> ·{' '}
+								{session.summary.successfulResults}/
+								{session.summary.totalResults} успешно ·{' '}
 								{formatDuration(session.summary.durationMs)}
 							</span>
 						</button>
 						{expanded && (
 							<div style={sessionBodyStyle}>
 								<p style={captionStyle}>
-									Session id: {session.id}. Processed results are shown separately
-									for state-core scripting time and ui-coupled render/commit time.
+									Session id: {session.id}. Результаты разделены на state-core
+									scripting time и ui-coupled render/commit time.
 								</p>
 								{viewMode === 'scenario' ? (
 									<ScenarioTable results={session.results} />
@@ -316,23 +370,23 @@ const summaryStyle: React.CSSProperties = {
 	background: '#eef6ff',
 	border: '1px solid #bfdbfe',
 	borderRadius: '8px',
-	padding: '16px',
-	marginBottom: '16px',
+	padding: '20px',
+	marginBottom: '18px',
 }
 
 const summaryGridStyle: React.CSSProperties = {
 	display: 'grid',
 	gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-	gap: '8px',
+	gap: '12px',
 	fontSize: '14px',
 }
 
 const toolbarStyle: React.CSSProperties = {
 	display: 'flex',
 	flexWrap: 'wrap',
-	gap: '12px',
+	gap: '14px',
 	alignItems: 'center',
-	marginBottom: '16px',
+	marginBottom: '18px',
 }
 
 const adapterFilterStyle: React.CSSProperties = {
@@ -368,7 +422,7 @@ const buttonStyle: React.CSSProperties = {
 const sessionStyle: React.CSSProperties = {
 	border: '1px solid #e5e7eb',
 	borderRadius: '8px',
-	marginBottom: '12px',
+	marginBottom: '16px',
 	overflow: 'hidden',
 }
 
@@ -376,8 +430,8 @@ const sessionHeaderStyle: React.CSSProperties = {
 	width: '100%',
 	display: 'flex',
 	justifyContent: 'space-between',
-	gap: '12px',
-	padding: '12px 14px',
+	gap: '16px',
+	padding: '14px 16px',
 	border: 'none',
 	background: '#f8fafc',
 	cursor: 'pointer',
@@ -386,7 +440,19 @@ const sessionHeaderStyle: React.CSSProperties = {
 }
 
 const sessionBodyStyle: React.CSSProperties = {
-	padding: '14px',
+	padding: '18px',
+}
+
+const statusBadgeStyle: React.CSSProperties = {
+	display: 'inline-flex',
+	alignItems: 'center',
+	justifyContent: 'center',
+	padding: '3px 8px',
+	border: '1px solid',
+	borderRadius: '999px',
+	fontSize: '12px',
+	fontWeight: 700,
+	whiteSpace: 'nowrap',
 }
 
 const captionStyle: React.CSSProperties = {

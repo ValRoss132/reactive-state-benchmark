@@ -51,9 +51,20 @@ const nonNegativeInt = (value: string, fallback: number) => {
 }
 
 const formatMs = (value?: number) => {
-	if (value === undefined) return 'unknown'
+	if (value === undefined) return 'неизвестно'
 	if (value < 1000) return `${Math.round(value)} ms`
 	return `${(value / 1000).toFixed(1)} s`
+}
+
+const phaseLabels: Record<ProgressState['phase'], string> = {
+	idle: 'ожидание',
+	preparing: 'подготовка',
+	warmup: 'прогрев',
+	measuring: 'измерение',
+	aggregating: 'агрегация',
+	completed: 'завершено',
+	failed: 'ошибка',
+	cancelled: 'отменено',
 }
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -90,12 +101,19 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 		})
 	const mixTotal =
 		config.operationMix.update + config.operationMix.add + config.operationMix.remove
+	const confirmCancel = () => {
+		if (window.confirm('Остановить текущую benchmark session?')) {
+			onCancel()
+		}
+	}
 
 	return (
 		<div style={panelStyle}>
 			<section style={sectionStyle}>
-				<h3 style={headingStyle}>Параметры эксперимента</h3>
-				<div style={gridStyle}>
+				<div style={sectionHeaderStyle}>
+					<h3 style={headingStyle}>Что запускать</h3>
+				</div>
+				<div style={choiceGridStyle}>
 					<label style={fieldStyle}>
 						<span style={labelStyle}>Адаптер</span>
 						<select
@@ -124,8 +142,16 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 							))}
 						</select>
 					</label>
+				</div>
+			</section>
+
+			<section style={sectionStyle}>
+				<div style={sectionHeaderStyle}>
+					<h3 style={headingStyle}>Параметры нагрузки</h3>
+				</div>
+				<div style={gridStyle}>
 					<label style={fieldStyle}>
-						<span style={labelStyle}>Iterations</span>
+						<span style={labelStyle}>Итерации</span>
 						<input
 							disabled={isRunning}
 							type='number'
@@ -140,7 +166,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 						/>
 					</label>
 					<label style={fieldStyle}>
-						<span style={labelStyle}>Warmup</span>
+						<span style={labelStyle}>Прогрев</span>
 						<input
 							disabled={isRunning}
 							type='number'
@@ -158,7 +184,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 						/>
 					</label>
 					<label style={fieldStyle}>
-						<span style={labelStyle}>Runs</span>
+						<span style={labelStyle}>Повторы</span>
 						<input
 							disabled={isRunning}
 							type='number'
@@ -176,7 +202,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 						/>
 					</label>
 					<label style={fieldStyle}>
-						<span style={labelStyle}>Initial size</span>
+						<span style={labelStyle}>Начальный размер</span>
 						<input
 							disabled={isRunning}
 							type='number'
@@ -191,7 +217,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 						/>
 					</label>
 					<label style={fieldStyle}>
-						<span style={labelStyle}>Subscribers</span>
+						<span style={labelStyle}>Подписчики</span>
 						<input
 							disabled={isRunning}
 							type='number'
@@ -222,7 +248,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 						/>
 					</label>
 					<label style={fieldStyle}>
-						<span style={labelStyle}>Update %</span>
+						<span style={labelStyle}>Update, %</span>
 						<input
 							disabled={isRunning}
 							type='number'
@@ -233,7 +259,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 						/>
 					</label>
 					<label style={fieldStyle}>
-						<span style={labelStyle}>Add %</span>
+						<span style={labelStyle}>Add, %</span>
 						<input
 							disabled={isRunning}
 							type='number'
@@ -244,7 +270,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 						/>
 					</label>
 					<label style={fieldStyle}>
-						<span style={labelStyle}>Remove %</span>
+						<span style={labelStyle}>Remove, %</span>
 						<input
 							disabled={isRunning}
 							type='number'
@@ -258,35 +284,63 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 					</label>
 				</div>
 				<div style={hintStyle}>
-					Operation mix total: {mixTotal}. Remove operations are generated only
-					when the CRUD live set is non-empty; otherwise the generator emits a
-					safe add operation.
+					Сумма CRUD mix: {mixTotal}. Remove генерируется только при непустом
+					live-наборе; если удалять нечего, генератор выполняет Add.
 				</div>
-				<div style={buttonRowStyle}>
+			</section>
+
+			<section style={sectionStyle}>
+				<div style={sectionHeaderStyle}>
+					<h3 style={headingStyle}>Запуск</h3>
+				</div>
+				<div style={runButtonGridStyle}>
 					<button disabled={isRunning} onClick={onRunCurrent} style={buttonStyle}>
-						Run selected
+						Запустить выбранное
 					</button>
 					<button disabled={isRunning} onClick={onRunScenario} style={buttonStyle}>
-						Run scenario
+						Запустить сценарий
 					</button>
 					<button disabled={isRunning} onClick={onRunAdapter} style={buttonStyle}>
-						Run adapter
+						Запустить адаптер
 					</button>
 					<button disabled={isRunning} onClick={onRunAll} style={primaryButtonStyle}>
-						Run all benchmarks
+						Запустить все
 					</button>
-					<button disabled={!isRunning} onClick={onCancel} style={dangerButtonStyle}>
-						Cancel
+				</div>
+				<div style={dangerZoneStyle}>
+					<div>
+						<strong>Остановка запуска</strong>
+						<p style={sectionTextStyle}>
+							Отмена доступна только во время выполнения и требует подтверждения.
+						</p>
+					</div>
+					<button
+						disabled={!isRunning}
+						onClick={confirmCancel}
+						style={{
+							...dangerButtonStyle,
+							...(!isRunning ? disabledButtonStyle : null),
+						}}
+					>
+						Остановить session
 					</button>
+				</div>
+			</section>
+
+			<section style={sectionStyle}>
+				<div style={sectionHeaderStyle}>
+					<h3 style={headingStyle}>Сброс и пресет</h3>
+				</div>
+				<div style={buttonRowStyle}>
 					<button disabled={isRunning} onClick={onReset} style={mutedButtonStyle}>
-						Reset
+						Сбросить историю
 					</button>
 					<button
 						disabled={isRunning}
 						onClick={() => saveExperimentConfigPreset(config)}
 						style={mutedButtonStyle}
 					>
-						Save preset
+						Сохранить пресет
 					</button>
 					<button
 						disabled={isRunning}
@@ -299,13 +353,13 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 						}}
 						style={mutedButtonStyle}
 					>
-						Clear preset
+						Очистить пресет
 					</button>
 				</div>
 			</section>
 
 			<section style={sectionStyle}>
-				<h3 style={headingStyle}>Статус выполнения</h3>
+				<h3 style={standaloneHeadingStyle}>Статус выполнения</h3>
 				<div style={progressTrackStyle}>
 					<div
 						style={{
@@ -315,26 +369,28 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 					/>
 				</div>
 				<div style={statusGridStyle}>
-					<span>Progress: {progressState.progress}%</span>
-					<span>Phase: {progressState.phase}</span>
-					<span>Adapter: {progressState.adapterName}</span>
-					<span>Scenario: {progressState.scenarioName}</span>
+					<span>Прогресс: {progressState.progress}%</span>
+					<span>Фаза: {phaseLabels[progressState.phase]}</span>
+					<span>Адаптер: {progressState.adapterName}</span>
+					<span>Сценарий: {progressState.scenarioName}</span>
 					<span>
-						Iteration: {progressState.currentIteration}/
+						Итерация: {progressState.currentIteration}/
 						{progressState.totalIterations}
 					</span>
-					<span>Runs: {config.measurementRuns}</span>
-					<span>Initial size: {config.initialSize}</span>
-					<span>Subscribers: {config.subscriberCount}</span>
+					<span>
+						Run: {progressState.currentRun}/{progressState.totalRuns}
+					</span>
+					<span>Начальный размер: {config.initialSize}</span>
+					<span>Подписчики: {config.subscriberCount}</span>
 					<span>
 						CRUD mix: {config.operationMix.update}/{config.operationMix.add}/
 						{config.operationMix.remove}
 					</span>
 					<span>
-						Step: {progressState.currentStep}/{progressState.totalSteps}
+						Шаг: {progressState.currentStep}/{progressState.totalSteps}
 					</span>
-					<span>Elapsed: {formatMs(progressState.elapsedMs)}</span>
-					<span>ETA: {formatMs(progressState.estimatedRemainingMs)}</span>
+					<span>Прошло: {formatMs(progressState.elapsedMs)}</span>
+					<span>Осталось: {formatMs(progressState.estimatedRemainingMs)}</span>
 				</div>
 				{progressState.message && (
 					<div style={errorStyle}>{progressState.message}</div>
@@ -342,54 +398,56 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 			</section>
 
 			<section style={sectionStyle}>
-				<h3 style={headingStyle}>Environment</h3>
+				<h3 style={standaloneHeadingStyle}>Среда выполнения</h3>
 				<div style={environmentGridStyle}>
 					<span>
-						Browser: {environment.browserName} {environment.browserVersion}
+						Браузер: {environment.browserName} {environment.browserVersion}
 					</span>
-					<span>OS: {environment.os}</span>
-					<span>Platform: {environment.platform}</span>
+					<span>ОС: {environment.os}</span>
+					<span>Платформа: {environment.platform}</span>
 					<span>Viewport: {environment.viewportSize}</span>
-					<span>Screen: {environment.screenResolution}</span>
+					<span>Экран: {environment.screenResolution}</span>
 					<span>DPR: {environment.devicePixelRatio}</span>
-					<span>CPU threads: {environment.hardwareConcurrency}</span>
-					<span>Memory: {environment.deviceMemory}</span>
+					<span>Потоки CPU: {environment.hardwareConcurrency}</span>
+					<span>Память: {environment.deviceMemory}</span>
 					<span>React: {environment.reactVersion}</span>
-					<span>Build: {environment.buildMode}</span>
-					<span>Profiling: {environment.profilingEnabled ? 'enabled' : 'disabled'}</span>
+					<span>Сборка: {environment.buildMode}</span>
+					<span>
+						Profiling: {environment.profilingEnabled ? 'включен' : 'выключен'}
+					</span>
 					<span>Commit: {environment.gitCommitHash}</span>
 				</div>
 				{!environment.profilingEnabled && (
 					<div style={warningStyle}>
-						Profiling build is disabled. UI-coupled metrics may be reported as
-						invalid; use `pnpm benchmark:profile`.
+						Profiling-сборка выключена. UI-coupled метрики могут быть
+						некорректны; используйте `pnpm benchmark:profile`.
 					</div>
 				)}
 			</section>
 
 			<section style={sectionStyle}>
-				<h3 style={headingStyle}>Экспорт</h3>
+				<h3 style={standaloneHeadingStyle}>Экспорт</h3>
 				<div style={buttonRowStyle}>
 					<button
 						disabled={sessions.length === 0}
 						onClick={() => exportReportsToJSON(sessions)}
 						style={buttonStyle}
 					>
-						Export JSON
+						Экспорт JSON
 					</button>
 					<button
 						disabled={sessions.length === 0}
 						onClick={() => exportReportsToCSV(sessions)}
 						style={buttonStyle}
 					>
-						Export CSV
+						Экспорт CSV
 					</button>
 					<button
 						disabled={sessions.length === 0}
 						onClick={() => copyMarkdownSummary(sessions)}
 						style={buttonStyle}
 					>
-						Copy Markdown summary
+						Копировать Markdown-сводку
 					</button>
 				</div>
 			</section>
@@ -399,31 +457,60 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 
 const panelStyle: React.CSSProperties = {
 	background: '#f6f7f9',
-	padding: '18px',
+	padding: '22px',
 	borderRadius: '8px',
 	border: '1px solid #dde1e6',
-	marginBottom: '28px',
+	marginBottom: '32px',
 }
 
 const sectionStyle: React.CSSProperties = {
+	background: '#fff',
+	border: '1px solid #dde1e6',
+	borderRadius: '8px',
+	padding: '20px',
 	marginBottom: '18px',
 }
 
 const headingStyle: React.CSSProperties = {
-	margin: '0 0 12px',
+	margin: 0,
 	fontSize: '16px',
+}
+
+const standaloneHeadingStyle: React.CSSProperties = {
+	...headingStyle,
+	marginBottom: '16px',
+}
+
+const sectionHeaderStyle: React.CSSProperties = {
+	display: 'flex',
+	justifyContent: 'space-between',
+	gap: '16px',
+	alignItems: 'baseline',
+	marginBottom: '12px',
+}
+
+const sectionTextStyle: React.CSSProperties = {
+	margin: 0,
+	fontSize: '12px',
+	color: '#64748b',
+}
+
+const choiceGridStyle: React.CSSProperties = {
+	display: 'grid',
+	gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+	gap: '16px',
 }
 
 const gridStyle: React.CSSProperties = {
 	display: 'grid',
 	gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-	gap: '12px',
+	gap: '16px',
 }
 
 const fieldStyle: React.CSSProperties = {
 	display: 'flex',
 	flexDirection: 'column',
-	gap: '5px',
+	gap: '7px',
 }
 
 const labelStyle: React.CSSProperties = {
@@ -432,7 +519,7 @@ const labelStyle: React.CSSProperties = {
 }
 
 const inputStyle: React.CSSProperties = {
-	padding: '8px',
+	padding: '10px',
 	borderRadius: '4px',
 	border: '1px solid #b8c0cc',
 	minWidth: 0,
@@ -441,12 +528,29 @@ const inputStyle: React.CSSProperties = {
 const buttonRowStyle: React.CSSProperties = {
 	display: 'flex',
 	flexWrap: 'wrap',
-	gap: '10px',
-	marginTop: '12px',
+	gap: '12px',
+}
+
+const runButtonGridStyle: React.CSSProperties = {
+	display: 'grid',
+	gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+	gap: '12px',
+}
+
+const dangerZoneStyle: React.CSSProperties = {
+	display: 'flex',
+	justifyContent: 'space-between',
+	alignItems: 'center',
+	gap: '16px',
+	marginTop: '18px',
+	padding: '14px',
+	border: '1px solid #fecaca',
+	borderRadius: '8px',
+	background: '#fff5f5',
 }
 
 const baseButtonStyle: React.CSSProperties = {
-	padding: '9px 14px',
+	padding: '11px 16px',
 	border: 'none',
 	borderRadius: '6px',
 	color: '#fff',
@@ -474,6 +578,11 @@ const mutedButtonStyle: React.CSSProperties = {
 	backgroundColor: '#6b7280',
 }
 
+const disabledButtonStyle: React.CSSProperties = {
+	opacity: 0.48,
+	cursor: 'not-allowed',
+}
+
 const progressTrackStyle: React.CSSProperties = {
 	height: '12px',
 	background: '#d8dee8',
@@ -490,8 +599,8 @@ const progressBarStyle: React.CSSProperties = {
 const statusGridStyle: React.CSSProperties = {
 	display: 'grid',
 	gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
-	gap: '8px',
-	marginTop: '12px',
+	gap: '12px',
+	marginTop: '16px',
 	fontSize: '13px',
 }
 
@@ -515,7 +624,7 @@ const errorStyle: React.CSSProperties = {
 }
 
 const hintStyle: React.CSSProperties = {
-	marginTop: '10px',
+	marginTop: '14px',
 	fontSize: '12px',
 	color: '#475569',
 }

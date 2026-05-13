@@ -6,6 +6,8 @@ export const createProgressState = (input: {
 	scenarioName: string
 	currentIteration: number
 	totalIterations: number
+	currentRun: number
+	totalRuns: number
 	currentStep: number
 	totalSteps: number
 	startedAt: number
@@ -27,6 +29,8 @@ export const createProgressState = (input: {
 		scenarioName: input.scenarioName,
 		currentIteration: input.currentIteration,
 		totalIterations: input.totalIterations,
+		currentRun: input.currentRun,
+		totalRuns: input.totalRuns,
 		currentStep: input.currentStep,
 		totalSteps: input.totalSteps,
 		progress,

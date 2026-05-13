@@ -1,60 +1,156 @@
 import React from 'react'
 
+const parameterRows = [
+	['iterations', 'Количество операций, которые входят в один измеряемый батч. Чем больше значение, тем меньше влияние шума таймера на одну операцию.'],
+	['warmupIterations', 'Операции перед измерением. Они прогревают JIT, кеши и внутренние структуры библиотек, но не попадают в статистику.'],
+	['measurementRuns', 'Число повторов измеряемого батча. Это размер выборки для mean, median, p95, p99, standard deviation и CV.'],
+	['seed', 'Начальное значение генератора данных. Один seed при одинаковой конфигурации дает одинаковую последовательность операций.'],
+	['initialSize', 'Размер исходной коллекции состояния. Используется для проверки масштабируемости алгоритмов и подписок.'],
+	['subscriberCount', 'Количество скрытых React-подписчиков. Значение 0 акцентирует state-core, большие значения усиливают UI-coupled нагрузку.'],
+	['operationMix', 'Соотношение update/add/remove для CRUD-сценария. Remove не генерируется при пустом live-наборе.'],
+	['adapter', 'Реализация единого контракта state adapter для конкретной библиотеки.'],
+	['scenario', 'Модель нагрузки: широкие подписки, CRUD-мутации или высокочастотный поток обновлений.'],
+	['adapter_group', 'Группа строки результата: state-core для времени update logic или ui-coupled для React render/commit.'],
+	['environment', 'Снимок браузера, ОС, React, build mode, profiling flag, CPU threads, viewport и WebGL-информации.'],
+	['raw measurements', 'Сырые значения по каждому measurement run до агрегации.'],
+	['processed results', 'Агрегированные статистики, полученные из raw measurements.'],
+]
+
+const metricItems = [
+	['mean', 'среднее значение: sum(x) / n.'],
+	['median', '50-й перцентиль, устойчивее к единичным выбросам, чем mean.'],
+	['min и max', 'минимальное и максимальное значения выборки.'],
+	['standard deviation', 'корень из средней квадратичной ошибки относительно mean.'],
+	['CV', 'коэффициент вариации: standard deviation / mean * 100%. Чем ниже CV, тем стабильнее серия.'],
+	['p95, p99', 'интерполированные хвостовые перцентили. При малом числе runs p99 близок к max, поэтому для анализа хвостов желательно повышать measurementRuns.'],
+	['opsPerSec', 'пропускная способность: iterations / batchDurationMs * 1000.'],
+	['sample count', 'число measurement runs, то есть размер выборки.'],
+	['failed count', 'число упавших adapter x scenario results внутри session.'],
+	['elapsed time', 'длительность session от startedAt до completedAt.'],
+]
+
+const actionItems = [
+	['Запустить выбранное', 'один адаптер на одном сценарии.'],
+	['Запустить сценарий', 'все адаптеры на выбранном сценарии.'],
+	['Запустить адаптер', 'выбранный адаптер на всех сценариях.'],
+	['Запустить все', 'все адаптеры на всех сценариях как одна session.'],
+	['Остановить session', 'отменить текущую session после подтверждения.'],
+	['Сбросить историю', 'очистить историю sessions.'],
+	['Экспорт CSV', 'CSV с секциями processed/raw/environment.'],
+	['Экспорт JSON', 'полный снимок sessions с raw measurements.'],
+	['История', 'выбор сохраненной session из localStorage и экспорт только выбранного запуска.'],
+]
+
+const parameterImpactItems = [
+	['Итерации', 'Увеличение обычно снижает шум времени на одну операцию и делает mean стабильнее, но каждый run длится дольше. Слишком малое значение может повышать CV из-за влияния таймера, GC и фоновых задач.'],
+	['Прогрев', 'Больший прогрев уменьшает влияние JIT-компиляции и первичных инициализаций. После разумного порога эффект почти исчезает, а общее время запуска продолжает расти.'],
+	['Повторы', 'Большее число runs делает median, p95, p99 и CV надежнее. Для p99 маленькая выборка особенно слаба: при 15 runs хвостовая оценка близка к максимуму и чувствительна к единичным выбросам.'],
+	['Начальный размер', 'Рост initialSize увеличивает объем состояния и может повышать стоимость поиска, копирования массивов, создания индексов и structural updates. При фиксированном числе подписчиков он также снижает плотность попадания операций в подписанные элементы.'],
+	['Подписчики', 'Рост subscriberCount обычно увеличивает UI-coupled нагрузку и стоимость уведомления подписок. Для fine-grained моделей эффект зависит от того, попадает ли операция в подписанный элемент.'],
+	['CRUD mix', 'Большая доля Update проверяет точечные изменения. Add и Remove сильнее нагружают структуру коллекции, индексы и atom/store bookkeeping. Remove зависит от размера live-набора.'],
+	['Seed', 'Seed не должен системно ускорять библиотеку, но меняет конкретную последовательность операций. Для спорных результатов стоит повторять несколько seed и сравнивать распределения.'],
+]
+
 export const DocumentationView: React.FC = () => (
-	<div style={docStyle}>
-		<h2>Документация</h2>
-		<h3>Параметры</h3>
-		<table style={tableStyle}>
-			<tbody>
-				<tr><td style={tdStyle}><strong>iterations</strong></td><td style={tdStyle}>Количество операций, которые входят в один измеряемый батч. Чем больше значение, тем меньше влияние шума таймера на одну операцию.</td></tr>
-				<tr><td style={tdStyle}><strong>warmupIterations</strong></td><td style={tdStyle}>Операции перед измерением. Они прогревают JIT, кеши и внутренние структуры библиотек, но не попадают в статистику.</td></tr>
-				<tr><td style={tdStyle}><strong>measurementRuns</strong></td><td style={tdStyle}>Число повторов измеряемого батча. Это размер выборки для mean, median, p95, p99, standard deviation и CV.</td></tr>
-				<tr><td style={tdStyle}><strong>seed</strong></td><td style={tdStyle}>Начальное значение генератора данных. Один seed при одинаковой конфигурации дает одинаковую последовательность операций.</td></tr>
-				<tr><td style={tdStyle}><strong>initialSize</strong></td><td style={tdStyle}>Размер исходной коллекции состояния. Используется для проверки масштабируемости алгоритмов и подписок.</td></tr>
-				<tr><td style={tdStyle}><strong>subscriberCount</strong></td><td style={tdStyle}>Количество скрытых React-подписчиков. Значение 0 акцентирует state-core, большие значения усиливают UI-coupled нагрузку.</td></tr>
-				<tr><td style={tdStyle}><strong>operationMix</strong></td><td style={tdStyle}>Соотношение update/add/remove для CRUD-сценария. Remove не генерируется при пустом live-наборе.</td></tr>
-				<tr><td style={tdStyle}><strong>adapter</strong></td><td style={tdStyle}>Реализация единого контракта state adapter для конкретной библиотеки.</td></tr>
-				<tr><td style={tdStyle}><strong>scenario</strong></td><td style={tdStyle}>Модель нагрузки: широкие подписки, CRUD-мутации или высокочастотный поток обновлений.</td></tr>
-				<tr><td style={tdStyle}><strong>adapter_group</strong></td><td style={tdStyle}>Группа строки результата: state-core для времени update logic или ui-coupled для React render/commit.</td></tr>
-				<tr><td style={tdStyle}><strong>environment</strong></td><td style={tdStyle}>Снимок браузера, ОС, React, build mode, profiling flag, CPU threads, viewport и WebGL-информации.</td></tr>
-				<tr><td style={tdStyle}><strong>raw measurements</strong></td><td style={tdStyle}>Сырые значения по каждому measurement run до агрегации.</td></tr>
-				<tr><td style={tdStyle}><strong>processed results</strong></td><td style={tdStyle}>Агрегированные статистики, полученные из raw measurements.</td></tr>
-			</tbody>
-		</table>
-		<h3>Метрики</h3>
-		<ul>
-			<li><strong>mean</strong> — среднее значение: sum(x) / n.</li>
-			<li><strong>median</strong> — 50-й перцентиль, устойчивее к единичным выбросам, чем mean.</li>
-			<li><strong>min</strong> и <strong>max</strong> — минимальное и максимальное значения выборки.</li>
-			<li><strong>standard deviation</strong> — корень из средней квадратичной ошибки относительно mean.</li>
-			<li><strong>CV</strong> — коэффициент вариации: standard deviation / mean * 100%. Чем ниже CV, тем стабильнее серия.</li>
-			<li><strong>p95</strong>, <strong>p99</strong> — интерполированные хвостовые перцентили. При малом числе runs p99 близок к max, поэтому для анализа хвостов желательно повышать measurementRuns.</li>
-			<li><strong>opsPerSec</strong> — пропускная способность: iterations / batchDurationMs * 1000.</li>
-			<li><strong>sample count</strong> — число measurement runs, то есть размер выборки.</li>
-			<li><strong>failed count</strong> — число упавших adapter × scenario results внутри session.</li>
-			<li><strong>elapsed time</strong> — длительность session от startedAt до completedAt.</li>
-		</ul>
-		<h3>Действия</h3>
-		<ul>
-			<li><strong>Run selected</strong> — один адаптер на одном сценарии.</li>
-			<li><strong>Run scenario</strong> — все адаптеры на выбранном сценарии.</li>
-			<li><strong>Run adapter</strong> — выбранный адаптер на всех сценариях.</li>
-			<li><strong>Run all benchmarks</strong> — все адаптеры на всех сценариях как одна session.</li>
-			<li><strong>Cancel</strong> — отменить текущую session.</li>
-			<li><strong>Reset</strong> — очистить историю sessions.</li>
-			<li><strong>Export CSV</strong> — CSV с секциями processed/raw/environment.</li>
-			<li><strong>Export JSON</strong> — полный снимок sessions с raw measurements.</li>
-			<li><strong>History</strong> — выбор сохраненной session из localStorage и экспорт только выбранного запуска.</li>
-		</ul>
+	<div style={pageStyle}>
+		<header style={headerStyle}>
+			<h2 style={titleStyle}>Документация</h2>
+			<p style={leadStyle}>
+				Справочник по параметрам, метрикам и действиям стенда Reactive Bench.
+			</p>
+		</header>
+
+		<section style={sectionStyle}>
+			<h3 style={sectionTitleStyle}>Параметры</h3>
+			<table style={tableStyle}>
+				<tbody>
+					{parameterRows.map(([name, description]) => (
+						<tr key={name}>
+							<td style={termCellStyle}>
+								<code style={codeStyle}>{name}</code>
+							</td>
+							<td style={tdStyle}>{description}</td>
+						</tr>
+					))}
+				</tbody>
+			</table>
+		</section>
+
+		<section style={sectionStyle}>
+			<h3 style={sectionTitleStyle}>Метрики</h3>
+			<div style={listGridStyle}>
+				{metricItems.map(([name, description]) => (
+					<div key={name} style={definitionStyle}>
+						<strong>{name}</strong>
+						<span>{description}</span>
+					</div>
+				))}
+			</div>
+		</section>
+
+		<section style={sectionStyle}>
+			<h3 style={sectionTitleStyle}>Ожидаемое влияние параметров</h3>
+			<div style={listGridStyle}>
+				{parameterImpactItems.map(([name, description]) => (
+					<div key={name} style={definitionStyle}>
+						<strong>{name}</strong>
+						<span>{description}</span>
+					</div>
+				))}
+			</div>
+		</section>
+
+		<section style={sectionStyle}>
+			<h3 style={sectionTitleStyle}>Действия</h3>
+			<div style={listGridStyle}>
+				{actionItems.map(([name, description]) => (
+					<div key={name} style={definitionStyle}>
+						<strong>{name}</strong>
+						<span>{description}</span>
+					</div>
+				))}
+			</div>
+		</section>
 	</div>
 )
 
-const docStyle: React.CSSProperties = {
+const pageStyle: React.CSSProperties = {
+	background: '#f6f7f9',
+	border: '1px solid #dde1e6',
+	borderRadius: '8px',
+	padding: '22px',
+	lineHeight: 1.6,
+}
+
+const headerStyle: React.CSSProperties = {
 	background: '#fff',
-	border: '1px solid #e5e7eb',
+	border: '1px solid #dde1e6',
 	borderRadius: '8px',
 	padding: '20px',
-	lineHeight: 1.65,
+	marginBottom: '18px',
+}
+
+const titleStyle: React.CSSProperties = {
+	margin: '0 0 6px',
+	fontSize: '22px',
+}
+
+const leadStyle: React.CSSProperties = {
+	margin: 0,
+	color: '#475569',
+}
+
+const sectionStyle: React.CSSProperties = {
+	background: '#fff',
+	border: '1px solid #dde1e6',
+	borderRadius: '8px',
+	padding: '20px',
+	marginBottom: '18px',
+}
+
+const sectionTitleStyle: React.CSSProperties = {
+	margin: '0 0 12px',
+	fontSize: '16px',
 }
 
 const tableStyle: React.CSSProperties = {
@@ -63,7 +159,34 @@ const tableStyle: React.CSSProperties = {
 }
 
 const tdStyle: React.CSSProperties = {
-	borderBottom: '1px solid #e5e7eb',
-	padding: '8px',
+	borderTop: '1px solid #e5e7eb',
+	padding: '10px 8px',
 	verticalAlign: 'top',
+}
+
+const termCellStyle: React.CSSProperties = {
+	...tdStyle,
+	width: '220px',
+}
+
+const codeStyle: React.CSSProperties = {
+	background: '#f1f5f9',
+	border: '1px solid #e2e8f0',
+	borderRadius: '4px',
+	padding: '2px 5px',
+}
+
+const listGridStyle: React.CSSProperties = {
+	display: 'grid',
+	gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+	gap: '12px',
+}
+
+const definitionStyle: React.CSSProperties = {
+	display: 'grid',
+	gap: '6px',
+	padding: '12px',
+	border: '1px solid #e5e7eb',
+	borderRadius: '6px',
+	background: '#fbfcfe',
 }

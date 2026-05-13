@@ -73,17 +73,19 @@ export class BenchmarkEngine {
 		signal?: AbortSignal,
 		progressOffset = 0,
 		totalStepsOverride?: number,
+		startedAtOverride?: number,
 	): Promise<ValidatedReport> {
 		const totalIterations = config.warmupIterations + config.iterations
 		const totalSteps =
 			totalStepsOverride ?? config.measurementRuns * totalIterations
-		const startedAt = performance.now()
+		const startedAt = startedAtOverride ?? performance.now()
 		let currentStep = progressOffset
 
 		const emit = (
 			phase: ProgressState['phase'],
 			currentIteration = 0,
 			message?: string,
+			currentRun = 0,
 		) => {
 			onProgress(
 				createProgressState({
@@ -92,6 +94,8 @@ export class BenchmarkEngine {
 					scenarioName: scenario.name,
 					currentIteration,
 					totalIterations,
+					currentRun,
+					totalRuns: config.measurementRuns,
 					currentStep,
 					totalSteps,
 					startedAt,
@@ -136,7 +140,7 @@ export class BenchmarkEngine {
 
 			for (let i = 0; i < config.warmupIterations; i++) {
 				checkAbort()
-				emit('warmup', i + 1)
+				emit('warmup', i + 1, undefined, run + 1)
 				flushSync(() => {
 					adapter.update(payloads[i])
 				})
@@ -151,7 +155,7 @@ export class BenchmarkEngine {
 			for (let i = 0; i < config.iterations; i++) {
 				checkAbort()
 				const absoluteIteration = config.warmupIterations + i
-				emit('measuring', i + 1)
+				emit('measuring', i + 1, undefined, run + 1)
 				flushSync(() => {
 					adapter.update(payloads[absoluteIteration])
 				})

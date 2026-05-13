@@ -1,106 +1,216 @@
 import React from 'react'
 
+const scenarioItems = [
+	['Wide Subscription', 'точечные обновления при широком графе подписчиков.'],
+	['CRUD Homeostasis', 'структурные мутации коллекции: update, add и remove.'],
+	['High-Frequency Async Stream', 'частые обновления случайных элементов.'],
+]
+
+const interpretationItems = [
+	['mean', 'средний уровень затрат.'],
+	['median', 'устойчивый к единичным выбросам центр выборки.'],
+	['p95 и p99', 'хвостовые задержки измерений.'],
+	['CV', 'стабильность серии относительно среднего значения.'],
+]
+
 export const MethodologyView: React.FC = () => (
-	<div style={docStyle}>
-		<h2>Методология</h2>
-		<p>
-			Цель эксперимента — сравнить поведение адаптеров управления состоянием в
-			одинаковых сценариях нагрузки и отделить стоимость обновления состояния
-			от стоимости распространения изменений в React UI.
-		</p>
-		<p>
-			Методика следует идее из ВКР: сравнение должно выполняться не по
-			разрозненным демонстрационным примерам, а по единому набору критериев в
-			идентичной среде выполнения. Поэтому ядро стенда ничего не знает о
-			внутреннем API библиотек и взаимодействует с ними через общий контракт
-			адаптера.
-		</p>
-		<h3>Что сравнивается</h3>
-		<p>
-			Стенд запускает одни и те же сценарии для Zustand, Redux Toolkit, MobX и
-			Jotai. Для каждого результата считаются две группы метрик:
-			<strong> State-core</strong> — scripting/update time, и
-			<strong> UI-coupled</strong> — render/commit time, зафиксированный React
-			Profiler.
-		</p>
-		<p>
-			Такое разделение важно потому, что процесс обновления неоднороден:
-			библиотека может быстро изменить состояние, но дорого распространить
-			изменение в UI, или наоборот. State-core отражает стоимость бизнес-логики
-			и структур данных адаптера, UI-coupled — стоимость связи с React и графом
-			подписок.
-		</p>
-		<h3>Сценарии и итерации</h3>
-		<p>
-			Сценарий задает начальное состояние и последовательность операций.
-			Итерация — одна операция над состоянием. Прогревочные итерации выполняются
-			до измерений и не попадают в итоговую статистику, чтобы снизить влияние
-			JIT-компиляции, кешей и первичных инициализаций.
-		</p>
-		<ul>
-			<li><strong>Wide Subscription</strong> проверяет точечные обновления при широком графе подписчиков.</li>
-			<li><strong>CRUD Homeostasis</strong> проверяет структурные мутации коллекции: update, add и remove.</li>
-			<li><strong>High-Frequency Async Stream</strong> имитирует частые обновления случайных элементов.</li>
-		</ul>
-		<h3>Seed и воспроизводимость</h3>
-		<p>
-			Seed управляет генерацией входных данных. Одинаковые seed, конфигурация,
-			адаптер и сценарий дают одинаковую последовательность операций. Поэтому
-			важно запускать все адаптеры с одинаковым числом итераций, прогревов,
-			размером состояния и mix операций.
-		</p>
-		<p>
-			Воспроизводимость обеспечивается четырьмя слоями: фиксированный seed,
-			одинаковая конфигурация сценария, единый контракт адаптера и снимок среды
-			выполнения. Environment snapshot сохраняется вместе с результатами, чтобы
-			можно было объяснить различия между устройствами и браузерами.
-		</p>
-		<h3>Формулы статистической обработки</h3>
-		<p>
-			Для каждой серии из <em>n</em> измеряемых runs формируется выборка
-			значений <em>x</em>. Среднее считается как <code>mean = sum(x) / n</code>.
-			Стандартное отклонение считается как{' '}
-			<code>sqrt(sum((x - mean)^2) / n)</code>. Коэффициент вариации:{' '}
-			<code>CV = standardDeviation / mean * 100%</code>. Пропускная способность:{' '}
-			<code>opsPerSec = iterations / batchDurationMs * 1000</code>.
-		</p>
-		<p>
-			Перцентили p95 и p99 рассчитываются по отсортированной выборке с линейной
-			интерполяцией между соседними значениями. Ранее nearest-rank метод при 15
-			runs давал одинаковый индекс для p95 и p99, поэтому оба показателя
-			совпадали с максимумом. Это математически ожидаемо для малой выборки, но
-			менее информативно. Для надежного анализа p99 рекомендуется использовать
-			не менее 100 measurement runs; для p95 обычно достаточно 30 и более.
-		</p>
-		<h3>Интерпретация</h3>
-		<p>
-			Mean показывает средний уровень затрат, median устойчивее к выбросам, p95
-			и p99 показывают хвостовые задержки, а CV помогает оценить стабильность
-			измерений. Высокий CV обычно означает, что нагрузка слишком мала или среда
-			выполнения нестабильна.
-		</p>
-		<h3>Ограничения browser-based benchmark</h3>
-		<p>
-			Результаты зависят от браузера, устройства, энергорежима, фоновых
-			процессов, активных вкладок, температуры CPU и состояния DevTools. Dev mode
-			может искажать результаты; React Strict Mode может влиять на количество
-			вызовов; активные DevTools, throttling и энергосберегающий режим могут
-			заметно ухудшать стабильность.
-		</p>
-		<div style={warningStyle}>
-			Для финальных измерений используйте production profiling build, закройте
-			лишние вкладки и фоновые процессы, отключите throttling и не держите
-			DevTools открытым во время запуска.
-		</div>
+	<div style={pageStyle}>
+		<header style={headerStyle}>
+			<h2 style={titleStyle}>Методология</h2>
+			<p style={leadStyle}>
+				Как стенд отделяет стоимость обновления состояния от стоимости
+				распространения изменений в React UI.
+			</p>
+		</header>
+
+		<section style={sectionStyle}>
+			<h3 style={sectionTitleStyle}>Цель эксперимента</h3>
+			<p style={paragraphStyle}>
+				Reactive Bench сравнивает поведение адаптеров управления состоянием в
+				одинаковых сценариях нагрузки. Методика следует идее из ВКР: сравнение
+				выполняется не по разрозненным демонстрационным примерам, а по единому
+				набору критериев в идентичной среде выполнения.
+			</p>
+			<p style={paragraphStyle}>
+				Ядро стенда ничего не знает о внутреннем API библиотек и взаимодействует
+				с Zustand, Redux Toolkit, MobX и Jotai через общий контракт адаптера.
+			</p>
+		</section>
+
+		<section style={sectionStyle}>
+			<h3 style={sectionTitleStyle}>Что сравнивается</h3>
+			<div style={metricSplitStyle}>
+				<div style={definitionStyle}>
+					<strong>State-core</strong>
+					<span>
+						Scripting/update time: стоимость бизнес-логики, структур данных и
+						механизма обновления адаптера.
+					</span>
+				</div>
+				<div style={definitionStyle}>
+					<strong>UI-coupled</strong>
+					<span>
+						Render/commit time: стоимость связи с React и графом подписок,
+						зафиксированная React Profiler.
+					</span>
+				</div>
+			</div>
+		</section>
+
+		<section style={sectionStyle}>
+			<h3 style={sectionTitleStyle}>Сценарии и итерации</h3>
+			<p style={paragraphStyle}>
+				Сценарий задает начальное состояние и последовательность операций.
+				Итерация — одна операция над состоянием. Прогревочные итерации
+				выполняются до измерений и не попадают в итоговую статистику, чтобы
+				снизить влияние JIT-компиляции, кешей и первичных инициализаций.
+			</p>
+			<div style={listGridStyle}>
+				{scenarioItems.map(([name, description]) => (
+					<div key={name} style={definitionStyle}>
+						<strong>{name}</strong>
+						<span>{description}</span>
+					</div>
+				))}
+			</div>
+		</section>
+
+		<section style={sectionStyle}>
+			<h3 style={sectionTitleStyle}>Seed и воспроизводимость</h3>
+			<p style={paragraphStyle}>
+				Seed управляет генерацией входных данных. Одинаковые seed, конфигурация,
+				адаптер и сценарий дают одинаковую последовательность операций.
+			</p>
+			<p style={paragraphStyle}>
+				Воспроизводимость обеспечивается четырьмя слоями: фиксированный seed,
+				одинаковая конфигурация сценария, единый контракт адаптера и снимок среды
+				выполнения. Снимок среды сохраняется вместе с результатами, чтобы
+				можно было объяснить различия между устройствами и браузерами.
+			</p>
+		</section>
+
+		<section style={sectionStyle}>
+			<h3 style={sectionTitleStyle}>Статистическая обработка</h3>
+			<p style={paragraphStyle}>
+				Для каждой серии из <em>n</em> измеряемых runs формируется выборка
+				значений <em>x</em>. Среднее считается как{' '}
+				<code style={codeStyle}>mean = sum(x) / n</code>. Стандартное
+				отклонение считается как{' '}
+				<code style={codeStyle}>sqrt(sum((x - mean)^2) / n)</code>.
+				Коэффициент вариации:{' '}
+				<code style={codeStyle}>CV = standardDeviation / mean * 100%</code>.
+				Пропускная способность:{' '}
+				<code style={codeStyle}>
+					opsPerSec = iterations / batchDurationMs * 1000
+				</code>.
+			</p>
+			<p style={paragraphStyle}>
+				Перцентили p95 и p99 рассчитываются по отсортированной выборке с
+				линейной интерполяцией между соседними значениями. Для надежного анализа
+				p99 рекомендуется использовать не менее 100 measurement runs; для p95
+				обычно достаточно 30 и более.
+			</p>
+		</section>
+
+		<section style={sectionStyle}>
+			<h3 style={sectionTitleStyle}>Интерпретация</h3>
+			<div style={listGridStyle}>
+				{interpretationItems.map(([name, description]) => (
+					<div key={name} style={definitionStyle}>
+						<strong>{name}</strong>
+						<span>{description}</span>
+					</div>
+				))}
+			</div>
+		</section>
+
+		<section style={sectionStyle}>
+			<h3 style={sectionTitleStyle}>Ограничения browser-based benchmark</h3>
+			<p style={paragraphStyle}>
+				Результаты зависят от браузера, устройства, энергорежима, фоновых
+				процессов, активных вкладок, температуры CPU и состояния DevTools. Dev
+				mode может искажать результаты; React Strict Mode может влиять на
+				количество вызовов; активные DevTools, throttling и энергосберегающий
+				режим могут заметно ухудшать стабильность.
+			</p>
+			<div style={warningStyle}>
+				Для финальных измерений используйте production profiling build, закройте
+				лишние вкладки и фоновые процессы, отключите throttling и не держите
+				DevTools открытым во время запуска.
+			</div>
+		</section>
 	</div>
 )
 
-const docStyle: React.CSSProperties = {
+const pageStyle: React.CSSProperties = {
+	background: '#f6f7f9',
+	border: '1px solid #dde1e6',
+	borderRadius: '8px',
+	padding: '22px',
+	lineHeight: 1.6,
+}
+
+const headerStyle: React.CSSProperties = {
 	background: '#fff',
-	border: '1px solid #e5e7eb',
+	border: '1px solid #dde1e6',
 	borderRadius: '8px',
 	padding: '20px',
-	lineHeight: 1.65,
+	marginBottom: '18px',
+}
+
+const titleStyle: React.CSSProperties = {
+	margin: '0 0 6px',
+	fontSize: '22px',
+}
+
+const leadStyle: React.CSSProperties = {
+	margin: 0,
+	color: '#475569',
+}
+
+const sectionStyle: React.CSSProperties = {
+	background: '#fff',
+	border: '1px solid #dde1e6',
+	borderRadius: '8px',
+	padding: '20px',
+	marginBottom: '18px',
+}
+
+const sectionTitleStyle: React.CSSProperties = {
+	margin: '0 0 12px',
+	fontSize: '16px',
+}
+
+const paragraphStyle: React.CSSProperties = {
+	margin: '0 0 12px',
+}
+
+const metricSplitStyle: React.CSSProperties = {
+	display: 'grid',
+	gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+	gap: '12px',
+}
+
+const listGridStyle: React.CSSProperties = {
+	display: 'grid',
+	gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+	gap: '12px',
+}
+
+const definitionStyle: React.CSSProperties = {
+	display: 'grid',
+	gap: '6px',
+	padding: '12px',
+	border: '1px solid #e5e7eb',
+	borderRadius: '6px',
+	background: '#fbfcfe',
+}
+
+const codeStyle: React.CSSProperties = {
+	background: '#f1f5f9',
+	border: '1px solid #e2e8f0',
+	borderRadius: '4px',
+	padding: '2px 5px',
 }
 
 const warningStyle: React.CSSProperties = {
@@ -108,5 +218,5 @@ const warningStyle: React.CSSProperties = {
 	border: '1px solid #fb923c',
 	borderRadius: '8px',
 	padding: '12px',
-	marginTop: '16px',
+	marginTop: '12px',
 }

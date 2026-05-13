@@ -137,5 +137,5 @@ test('run history is persisted in localStorage and selected exports are supporte
 	assert.match(history, /saveRunHistory/)
 	assert.match(app, /loadRunHistory/)
 	assert.match(reportView, /selectedSessionId/)
-	assert.match(reportView, /Export selected CSV/)
+	assert.match(reportView, /Экспорт выбранного CSV/)
 })
