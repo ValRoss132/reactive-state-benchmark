@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { BenchmarkEngine, DEFAULT_MEASUREMENT_RUNS } from './core/Engine'
 import { ZustandAdapter } from './adapters/ZustandAdapter'
 import { ReduxAdapter, ReduxProvider } from './adapters/ReduxAdapter'
@@ -55,9 +55,17 @@ const makeDefaultConfig = (): ExperimentConfig => ({
 	})(),
 })
 
-const waitForReact = () => new Promise((resolve) => requestAnimationFrame(resolve))
+const waitForReact = () =>
+	new Promise((resolve) => requestAnimationFrame(resolve))
 type AppTab = 'benchmarks' | 'methodology' | 'documentation'
 type ThemeMode = 'light' | 'dark'
+
+const getSystemTheme = (): ThemeMode => {
+	if (typeof window === 'undefined' || !window.matchMedia) return 'light'
+	return window.matchMedia('(prefers-color-scheme: dark)').matches
+		? 'dark'
+		: 'light'
+}
 
 export const App = () => {
 	const [currentScenario, setCurrentScenario] = useState(SCENARIOS[0])
@@ -66,7 +74,8 @@ export const App = () => {
 	)
 	const [config, setConfig] = useState<ExperimentConfig>(makeDefaultConfig)
 	const [activeTab, setActiveTab] = useState<AppTab>('benchmarks')
-	const [themeMode, setThemeMode] = useState<ThemeMode>('light')
+	const [themeMode, setThemeMode] = useState<ThemeMode>(() => getSystemTheme())
+	const [useSystemTheme, setUseSystemTheme] = useState(true)
 	const [isRunning, setIsRunning] = useState(false)
 	const [progressState, setProgressState] = useState<ProgressState>({
 		phase: 'idle',
@@ -77,11 +86,30 @@ export const App = () => {
 		currentRun: 0,
 		totalRuns: config.measurementRuns,
 		currentStep: 0,
-		totalSteps: config.measurementRuns * (config.iterations + config.warmupIterations),
+		totalSteps:
+			config.measurementRuns * (config.iterations + config.warmupIterations),
 		progress: 0,
 		elapsedMs: 0,
 	})
-	const [sessions, setSessions] = useState<BenchmarkRunSession[]>(loadRunHistory)
+	useEffect(() => {
+		const theme = themeVars[themeMode]
+		const pageBg = theme['--page-bg']
+		const textColor = theme['--text']
+		document.documentElement.style.backgroundColor = pageBg
+		document.body.style.backgroundColor = pageBg
+		document.body.style.color = textColor
+	}, [themeMode])
+
+	useEffect(() => {
+		if (!useSystemTheme || !window.matchMedia) return
+		const media = window.matchMedia('(prefers-color-scheme: dark)')
+		const applyTheme = () => setThemeMode(media.matches ? 'dark' : 'light')
+		applyTheme()
+		media.addEventListener('change', applyTheme)
+		return () => media.removeEventListener('change', applyTheme)
+	}, [useSystemTheme])
+	const [sessions, setSessions] =
+		useState<BenchmarkRunSession[]>(loadRunHistory)
 	const abortRef = useRef<AbortController | null>(null)
 	const environment = useMemo(() => captureEnvironmentInfo(), [])
 	const updateSessions = (
@@ -163,7 +191,8 @@ export const App = () => {
 						),
 					)
 					stepOffset +=
-						config.measurementRuns * (config.iterations + config.warmupIterations)
+						config.measurementRuns *
+						(config.iterations + config.warmupIterations)
 				}
 			}
 			activeSession = finalizeRunSession(activeSession)
@@ -195,9 +224,7 @@ export const App = () => {
 
 	const subscribers = useMemo(() => {
 		const ids = getVisibleSubscriberIds(currentScenario, config)
-		return ids.map((id) => (
-			<currentAdapter.Subscriber key={id} id={id} />
-		))
+		return ids.map((id) => <currentAdapter.Subscriber key={id} id={id} />)
 	}, [currentAdapter, currentScenario, config])
 
 	const renderWithProvider = (content: React.ReactNode) => {
@@ -236,14 +263,21 @@ export const App = () => {
 					</div>
 					<button
 						type='button'
-						onClick={() =>
+						onClick={() => {
+							setUseSystemTheme(false)
 							setThemeMode((current) =>
 								current === 'light' ? 'dark' : 'light',
 							)
-						}
+						}}
 						style={themeToggleStyle}
+						aria-label='Переключить тему'
+						title={
+							themeMode === 'light'
+								? 'Включить темную тему'
+								: 'Включить светлую тему'
+						}
 					>
-						{themeMode === 'light' ? 'Темная тема' : 'Светлая тема'}
+						{themeMode === 'light' ? moonIcon : sunIcon}
 					</button>
 				</nav>
 
@@ -314,7 +348,10 @@ export const App = () => {
 	)
 }
 
-const themeVars: Record<ThemeMode, React.CSSProperties & Record<string, string>> = {
+const themeVars: Record<
+	ThemeMode,
+	React.CSSProperties & Record<string, string>
+> = {
 	light: {
 		'--page-bg': '#f8fafc',
 		'--panel-bg': '#f6f7f9',
@@ -343,31 +380,31 @@ const themeVars: Record<ThemeMode, React.CSSProperties & Record<string, string>>
 		'--summary-border': '#bfdbfe',
 	},
 	dark: {
-		'--page-bg': '#0f172a',
-		'--panel-bg': '#111827',
-		'--surface': '#1e293b',
-		'--surface-muted': '#172033',
-		'--control-bg': '#334155',
-		'--table-head': '#263449',
-		'--progress-track': '#334155',
-		'--text': '#e5e7eb',
-		'--muted-text': '#cbd5e1',
-		'--subtle-text': '#94a3b8',
-		'--border': '#334155',
-		'--border-soft': '#3f4d63',
-		'--input-border': '#475569',
-		'--accent': '#3b82f6',
-		'--accent-strong': '#2563eb',
-		'--button-bg': '#475569',
-		'--muted-button-bg': '#64748b',
+		'--page-bg': '#0b0c0f',
+		'--panel-bg': '#0f1116',
+		'--surface': '#141821',
+		'--surface-muted': '#0f131a',
+		'--control-bg': '#1b1f2a',
+		'--table-head': '#171b24',
+		'--progress-track': '#1c202b',
+		'--text': '#e6e7eb',
+		'--muted-text': '#b3bac7',
+		'--subtle-text': '#8a92a3',
+		'--border': '#232836',
+		'--border-soft': '#2c3344',
+		'--input-border': '#2f374a',
+		'--accent': '#2b59c3',
+		'--accent-strong': '#1f4aa2',
+		'--button-bg': '#2a3346',
+		'--muted-button-bg': '#3a4356',
 		'--danger-bg': '#3b1518',
 		'--danger-border': '#7f1d1d',
 		'--warning-bg': '#3d2f12',
 		'--warning-border': '#a16207',
 		'--error-bg': '#451a1a',
 		'--error-border': '#dc2626',
-		'--summary-bg': '#172554',
-		'--summary-border': '#1d4ed8',
+		'--summary-bg': '#0f141c',
+		'--summary-border': '#1f2a3a',
 	},
 }
 
@@ -408,11 +445,54 @@ const tabButtonStyle: React.CSSProperties = {
 }
 
 const themeToggleStyle: React.CSSProperties = {
-	padding: '9px 14px',
+	width: '42px',
+	height: '42px',
+	display: 'inline-flex',
+	alignItems: 'center',
+	justifyContent: 'center',
 	border: '1px solid var(--border)',
 	borderRadius: '6px',
 	background: 'var(--surface)',
 	color: 'var(--text)',
-	fontWeight: 700,
 	cursor: 'pointer',
 }
+
+const sunIcon = (
+	<svg
+		width='18'
+		height='18'
+		viewBox='0 0 24 24'
+		fill='none'
+		stroke='currentColor'
+		strokeWidth='2'
+		strokeLinecap='round'
+		strokeLinejoin='round'
+		aria-hidden='true'
+	>
+		<circle cx='12' cy='12' r='4' />
+		<line x1='12' y1='2' x2='12' y2='6' />
+		<line x1='12' y1='18' x2='12' y2='22' />
+		<line x1='2' y1='12' x2='6' y2='12' />
+		<line x1='18' y1='12' x2='22' y2='12' />
+		<line x1='4.2' y1='4.2' x2='7' y2='7' />
+		<line x1='17' y1='17' x2='19.8' y2='19.8' />
+		<line x1='4.2' y1='19.8' x2='7' y2='17' />
+		<line x1='17' y1='7' x2='19.8' y2='4.2' />
+	</svg>
+)
+
+const moonIcon = (
+	<svg
+		width='18'
+		height='18'
+		viewBox='0 0 24 24'
+		fill='none'
+		stroke='currentColor'
+		strokeWidth='2'
+		strokeLinecap='round'
+		strokeLinejoin='round'
+		aria-hidden='true'
+	>
+		<path d='M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z' />
+	</svg>
+)
