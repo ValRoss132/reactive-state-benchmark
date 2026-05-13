@@ -456,16 +456,16 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 }
 
 const panelStyle: React.CSSProperties = {
-	background: '#f6f7f9',
+	background: 'var(--panel-bg)',
 	padding: '22px',
 	borderRadius: '8px',
-	border: '1px solid #dde1e6',
+	border: '1px solid var(--border)',
 	marginBottom: '32px',
 }
 
 const sectionStyle: React.CSSProperties = {
-	background: '#fff',
-	border: '1px solid #dde1e6',
+	background: 'var(--surface)',
+	border: '1px solid var(--border)',
 	borderRadius: '8px',
 	padding: '20px',
 	marginBottom: '18px',
@@ -492,7 +492,7 @@ const sectionHeaderStyle: React.CSSProperties = {
 const sectionTextStyle: React.CSSProperties = {
 	margin: 0,
 	fontSize: '12px',
-	color: '#64748b',
+	color: 'var(--subtle-text)',
 }
 
 const choiceGridStyle: React.CSSProperties = {
@@ -521,7 +521,9 @@ const labelStyle: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
 	padding: '10px',
 	borderRadius: '4px',
-	border: '1px solid #b8c0cc',
+	border: '1px solid var(--input-border)',
+	background: 'var(--surface)',
+	color: 'var(--text)',
 	minWidth: 0,
 }
 
@@ -544,9 +546,9 @@ const dangerZoneStyle: React.CSSProperties = {
 	gap: '16px',
 	marginTop: '18px',
 	padding: '14px',
-	border: '1px solid #fecaca',
+	border: '1px solid var(--danger-border)',
 	borderRadius: '8px',
-	background: '#fff5f5',
+	background: 'var(--danger-bg)',
 }
 
 const baseButtonStyle: React.CSSProperties = {
@@ -560,12 +562,12 @@ const baseButtonStyle: React.CSSProperties = {
 
 const buttonStyle: React.CSSProperties = {
 	...baseButtonStyle,
-	backgroundColor: '#475569',
+	backgroundColor: 'var(--button-bg)',
 }
 
 const primaryButtonStyle: React.CSSProperties = {
 	...baseButtonStyle,
-	backgroundColor: '#005bff',
+	backgroundColor: 'var(--accent-strong)',
 }
 
 const dangerButtonStyle: React.CSSProperties = {
@@ -575,7 +577,7 @@ const dangerButtonStyle: React.CSSProperties = {
 
 const mutedButtonStyle: React.CSSProperties = {
 	...baseButtonStyle,
-	backgroundColor: '#6b7280',
+	backgroundColor: 'var(--muted-button-bg)',
 }
 
 const disabledButtonStyle: React.CSSProperties = {
@@ -585,7 +587,7 @@ const disabledButtonStyle: React.CSSProperties = {
 
 const progressTrackStyle: React.CSSProperties = {
 	height: '12px',
-	background: '#d8dee8',
+	background: 'var(--progress-track)',
 	borderRadius: '999px',
 	overflow: 'hidden',
 }
@@ -613,18 +615,18 @@ const warningStyle: React.CSSProperties = {
 	marginTop: '12px',
 	padding: '10px',
 	borderRadius: '6px',
-	background: '#fff4cc',
-	border: '1px solid #eab308',
+	background: 'var(--warning-bg)',
+	border: '1px solid var(--warning-border)',
 }
 
 const errorStyle: React.CSSProperties = {
 	...warningStyle,
-	background: '#fee2e2',
-	border: '1px solid #ef4444',
+	background: 'var(--error-bg)',
+	border: '1px solid var(--error-border)',
 }
 
 const hintStyle: React.CSSProperties = {
 	marginTop: '14px',
 	fontSize: '12px',
-	color: '#475569',
+	color: 'var(--muted-text)',
 }

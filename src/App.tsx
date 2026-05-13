@@ -57,6 +57,7 @@ const makeDefaultConfig = (): ExperimentConfig => ({
 
 const waitForReact = () => new Promise((resolve) => requestAnimationFrame(resolve))
 type AppTab = 'benchmarks' | 'methodology' | 'documentation'
+type ThemeMode = 'light' | 'dark'
 
 export const App = () => {
 	const [currentScenario, setCurrentScenario] = useState(SCENARIOS[0])
@@ -65,6 +66,7 @@ export const App = () => {
 	)
 	const [config, setConfig] = useState<ExperimentConfig>(makeDefaultConfig)
 	const [activeTab, setActiveTab] = useState<AppTab>('benchmarks')
+	const [themeMode, setThemeMode] = useState<ThemeMode>('light')
 	const [isRunning, setIsRunning] = useState(false)
 	const [progressState, setProgressState] = useState<ProgressState>({
 		phase: 'idle',
@@ -206,108 +208,211 @@ export const App = () => {
 	}
 
 	return (
-		<div style={pageStyle}>
-			<Header scenarioName={currentScenario.name} />
-			<nav style={tabBarStyle}>
-				{[
-					['benchmarks', 'Benchmarks'],
-					['methodology', 'Методология'],
-					['documentation', 'Документация'],
-				].map(([id, label]) => (
-					<button
-						key={id}
-						onClick={() => setActiveTab(id as AppTab)}
-						style={{
-							...tabButtonStyle,
-							background: activeTab === id ? '#005bff' : '#e5e7eb',
-							color: activeTab === id ? '#fff' : '#111827',
-						}}
-					>
-						{label}
-					</button>
-				))}
-			</nav>
-
-			{activeTab === 'benchmarks' && (
-				<>
-					<ControlPanel
-						adapters={ADAPTERS}
-						scenarios={SCENARIOS}
-						currentAdapter={currentAdapter}
-						currentScenario={currentScenario}
-						config={config}
-						environment={environment}
-						isRunning={isRunning}
-						progressState={progressState}
-						sessions={sessions}
-						onConfigChange={setConfig}
-						onAdapterChange={(name) => {
-							const adapter = ADAPTERS.find((a) => a.name === name)
-							if (adapter) setCurrentAdapter(adapter)
-						}}
-						onScenarioChange={(name) => {
-							const scenario = SCENARIOS.find((s) => s.name === name)
-							if (scenario) setCurrentScenario(scenario)
-						}}
-						onRunCurrent={() =>
-							runMatrix('single', [currentAdapter], [currentScenario])
-						}
-						onRunScenario={() => runMatrix('scenario', ADAPTERS, [currentScenario])}
-						onRunAdapter={() => runMatrix('adapter', [currentAdapter], SCENARIOS)}
-						onRunAll={() => runMatrix('all', ADAPTERS, SCENARIOS)}
-						onCancel={() => abortRef.current?.abort()}
-						onReset={() => {
-							clearRunHistory()
-							setSessions([])
-							setProgressState((previous) => ({
-								...previous,
-								phase: 'idle',
-								currentIteration: 0,
-								currentRun: 0,
-								currentStep: 0,
-								progress: 0,
-								elapsedMs: 0,
-								message: undefined,
-							}))
-						}}
-					/>
-
-					<div style={{ height: 0, overflow: 'hidden' }}>
-						<ProfilerWrapper
-							id='benchmark-root'
-							onRender={(time) => BenchmarkEngine.recordRenderTime(time)}
-						>
-							{renderWithProvider(subscribers)}
-						</ProfilerWrapper>
+		<div style={appShellStyle(themeMode)}>
+			<div style={{ ...themeVars[themeMode], ...pageStyle }}>
+				<Header scenarioName={currentScenario.name} />
+				<nav style={topBarStyle}>
+					<div style={tabBarStyle}>
+						{[
+							['benchmarks', 'Benchmarks'],
+							['methodology', 'Методология'],
+							['documentation', 'Документация'],
+						].map(([id, label]) => (
+							<button
+								key={id}
+								onClick={() => setActiveTab(id as AppTab)}
+								style={{
+									...tabButtonStyle,
+									background:
+										activeTab === id ? 'var(--accent)' : 'var(--control-bg)',
+									color: activeTab === id ? '#fff' : 'var(--text)',
+									borderColor:
+										activeTab === id ? 'var(--accent)' : 'var(--border)',
+								}}
+							>
+								{label}
+							</button>
+						))}
 					</div>
+					<button
+						type='button'
+						onClick={() =>
+							setThemeMode((current) =>
+								current === 'light' ? 'dark' : 'light',
+							)
+						}
+						style={themeToggleStyle}
+					>
+						{themeMode === 'light' ? 'Темная тема' : 'Светлая тема'}
+					</button>
+				</nav>
 
-					<ReportView sessions={sessions} />
-				</>
-			)}
-			{activeTab === 'methodology' && <MethodologyView />}
-			{activeTab === 'documentation' && <DocumentationView />}
+				{activeTab === 'benchmarks' && (
+					<>
+						<ControlPanel
+							adapters={ADAPTERS}
+							scenarios={SCENARIOS}
+							currentAdapter={currentAdapter}
+							currentScenario={currentScenario}
+							config={config}
+							environment={environment}
+							isRunning={isRunning}
+							progressState={progressState}
+							sessions={sessions}
+							onConfigChange={setConfig}
+							onAdapterChange={(name) => {
+								const adapter = ADAPTERS.find((a) => a.name === name)
+								if (adapter) setCurrentAdapter(adapter)
+							}}
+							onScenarioChange={(name) => {
+								const scenario = SCENARIOS.find((s) => s.name === name)
+								if (scenario) setCurrentScenario(scenario)
+							}}
+							onRunCurrent={() =>
+								runMatrix('single', [currentAdapter], [currentScenario])
+							}
+							onRunScenario={() =>
+								runMatrix('scenario', ADAPTERS, [currentScenario])
+							}
+							onRunAdapter={() =>
+								runMatrix('adapter', [currentAdapter], SCENARIOS)
+							}
+							onRunAll={() => runMatrix('all', ADAPTERS, SCENARIOS)}
+							onCancel={() => abortRef.current?.abort()}
+							onReset={() => {
+								clearRunHistory()
+								setSessions([])
+								setProgressState((previous) => ({
+									...previous,
+									phase: 'idle',
+									currentIteration: 0,
+									currentRun: 0,
+									currentStep: 0,
+									progress: 0,
+									elapsedMs: 0,
+									message: undefined,
+								}))
+							}}
+						/>
+
+						<div style={{ height: 0, overflow: 'hidden' }}>
+							<ProfilerWrapper
+								id='benchmark-root'
+								onRender={(time) => BenchmarkEngine.recordRenderTime(time)}
+							>
+								{renderWithProvider(subscribers)}
+							</ProfilerWrapper>
+						</div>
+
+						<ReportView sessions={sessions} />
+					</>
+				)}
+				{activeTab === 'methodology' && <MethodologyView />}
+				{activeTab === 'documentation' && <DocumentationView />}
+			</div>
 		</div>
 	)
 }
+
+const themeVars: Record<ThemeMode, React.CSSProperties & Record<string, string>> = {
+	light: {
+		'--page-bg': '#f8fafc',
+		'--panel-bg': '#f6f7f9',
+		'--surface': '#ffffff',
+		'--surface-muted': '#fbfcfe',
+		'--control-bg': '#e5e7eb',
+		'--table-head': '#f1f5f9',
+		'--progress-track': '#d8dee8',
+		'--text': '#2f3437',
+		'--muted-text': '#475569',
+		'--subtle-text': '#64748b',
+		'--border': '#dde1e6',
+		'--border-soft': '#e5e7eb',
+		'--input-border': '#b8c0cc',
+		'--accent': '#005bff',
+		'--accent-strong': '#005bff',
+		'--button-bg': '#475569',
+		'--muted-button-bg': '#6b7280',
+		'--danger-bg': '#fff5f5',
+		'--danger-border': '#fecaca',
+		'--warning-bg': '#fff4cc',
+		'--warning-border': '#eab308',
+		'--error-bg': '#fee2e2',
+		'--error-border': '#ef4444',
+		'--summary-bg': '#eef6ff',
+		'--summary-border': '#bfdbfe',
+	},
+	dark: {
+		'--page-bg': '#0f172a',
+		'--panel-bg': '#111827',
+		'--surface': '#1e293b',
+		'--surface-muted': '#172033',
+		'--control-bg': '#334155',
+		'--table-head': '#263449',
+		'--progress-track': '#334155',
+		'--text': '#e5e7eb',
+		'--muted-text': '#cbd5e1',
+		'--subtle-text': '#94a3b8',
+		'--border': '#334155',
+		'--border-soft': '#3f4d63',
+		'--input-border': '#475569',
+		'--accent': '#3b82f6',
+		'--accent-strong': '#2563eb',
+		'--button-bg': '#475569',
+		'--muted-button-bg': '#64748b',
+		'--danger-bg': '#3b1518',
+		'--danger-border': '#7f1d1d',
+		'--warning-bg': '#3d2f12',
+		'--warning-border': '#a16207',
+		'--error-bg': '#451a1a',
+		'--error-border': '#dc2626',
+		'--summary-bg': '#172554',
+		'--summary-border': '#1d4ed8',
+	},
+}
+
+const appShellStyle = (themeMode: ThemeMode): React.CSSProperties => ({
+	minHeight: '100vh',
+	background: themeVars[themeMode]['--page-bg'],
+	transition: 'background 160ms ease-out',
+})
 
 const pageStyle: React.CSSProperties = {
 	padding: '30px',
 	maxWidth: '1280px',
 	margin: '0 auto',
 	fontFamily: 'Segoe UI, Roboto, sans-serif',
-	color: '#2f3437',
+	color: 'var(--text)',
+}
+
+const topBarStyle: React.CSSProperties = {
+	display: 'flex',
+	justifyContent: 'space-between',
+	alignItems: 'center',
+	gap: '14px',
+	marginBottom: '22px',
 }
 
 const tabBarStyle: React.CSSProperties = {
 	display: 'flex',
+	flexWrap: 'wrap',
 	gap: '8px',
-	marginBottom: '18px',
 }
 
 const tabButtonStyle: React.CSSProperties = {
 	padding: '9px 14px',
-	border: 'none',
+	border: '1px solid',
 	borderRadius: '6px',
+	fontWeight: 700,
+	cursor: 'pointer',
+}
+
+const themeToggleStyle: React.CSSProperties = {
+	padding: '9px 14px',
+	border: '1px solid var(--border)',
+	borderRadius: '6px',
+	background: 'var(--surface)',
+	color: 'var(--text)',
 	fontWeight: 700,
 	cursor: 'pointer',
 }

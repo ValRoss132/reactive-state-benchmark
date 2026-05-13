@@ -362,13 +362,14 @@ export const ReportView: React.FC<ReportViewProps> = ({ sessions }) => {
 
 const emptyStyle: React.CSSProperties = {
 	padding: '20px',
-	border: '1px dashed #cbd5e1',
+	border: '1px dashed var(--border)',
 	borderRadius: '8px',
+	background: 'var(--surface)',
 }
 
 const summaryStyle: React.CSSProperties = {
-	background: '#eef6ff',
-	border: '1px solid #bfdbfe',
+	background: 'var(--summary-bg)',
+	border: '1px solid var(--summary-border)',
 	borderRadius: '8px',
 	padding: '20px',
 	marginBottom: '18px',
@@ -405,25 +406,28 @@ const checkboxLabelStyle: React.CSSProperties = {
 
 const selectStyle: React.CSSProperties = {
 	padding: '6px',
-	border: '1px solid #cbd5e1',
+	border: '1px solid var(--input-border)',
 	borderRadius: '4px',
+	background: 'var(--surface)',
+	color: 'var(--text)',
 }
 
 const buttonStyle: React.CSSProperties = {
 	padding: '8px 12px',
 	border: 'none',
 	borderRadius: '6px',
-	background: '#475569',
+	background: 'var(--button-bg)',
 	color: '#fff',
 	fontWeight: 700,
 	cursor: 'pointer',
 }
 
 const sessionStyle: React.CSSProperties = {
-	border: '1px solid #e5e7eb',
+	border: '1px solid var(--border)',
 	borderRadius: '8px',
 	marginBottom: '16px',
 	overflow: 'hidden',
+	background: 'var(--surface)',
 }
 
 const sessionHeaderStyle: React.CSSProperties = {
@@ -433,7 +437,8 @@ const sessionHeaderStyle: React.CSSProperties = {
 	gap: '16px',
 	padding: '14px 16px',
 	border: 'none',
-	background: '#f8fafc',
+	background: 'var(--surface-muted)',
+	color: 'var(--text)',
 	cursor: 'pointer',
 	fontWeight: 700,
 	textAlign: 'left',
@@ -457,7 +462,7 @@ const statusBadgeStyle: React.CSSProperties = {
 
 const captionStyle: React.CSSProperties = {
 	marginTop: 0,
-	color: '#64748b',
+	color: 'var(--subtle-text)',
 	fontSize: '13px',
 }
 
@@ -484,12 +489,12 @@ const tableStyle: React.CSSProperties = {
 const thStyle: React.CSSProperties = {
 	textAlign: 'left',
 	padding: '8px',
-	borderBottom: '1px solid #cbd5e1',
-	background: '#f1f5f9',
+	borderBottom: '1px solid var(--border)',
+	background: 'var(--table-head)',
 }
 
 const tdStyle: React.CSSProperties = {
 	padding: '8px',
-	borderBottom: '1px solid #e5e7eb',
+	borderBottom: '1px solid var(--border-soft)',
 	verticalAlign: 'top',
 }

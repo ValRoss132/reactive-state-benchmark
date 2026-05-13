@@ -115,16 +115,16 @@ export const DocumentationView: React.FC = () => (
 )
 
 const pageStyle: React.CSSProperties = {
-	background: '#f6f7f9',
-	border: '1px solid #dde1e6',
+	background: 'var(--panel-bg)',
+	border: '1px solid var(--border)',
 	borderRadius: '8px',
 	padding: '22px',
 	lineHeight: 1.6,
 }
 
 const headerStyle: React.CSSProperties = {
-	background: '#fff',
-	border: '1px solid #dde1e6',
+	background: 'var(--surface)',
+	border: '1px solid var(--border)',
 	borderRadius: '8px',
 	padding: '20px',
 	marginBottom: '18px',
@@ -137,12 +137,12 @@ const titleStyle: React.CSSProperties = {
 
 const leadStyle: React.CSSProperties = {
 	margin: 0,
-	color: '#475569',
+	color: 'var(--muted-text)',
 }
 
 const sectionStyle: React.CSSProperties = {
-	background: '#fff',
-	border: '1px solid #dde1e6',
+	background: 'var(--surface)',
+	border: '1px solid var(--border)',
 	borderRadius: '8px',
 	padding: '20px',
 	marginBottom: '18px',
@@ -159,7 +159,7 @@ const tableStyle: React.CSSProperties = {
 }
 
 const tdStyle: React.CSSProperties = {
-	borderTop: '1px solid #e5e7eb',
+	borderTop: '1px solid var(--border-soft)',
 	padding: '10px 8px',
 	verticalAlign: 'top',
 }
@@ -170,8 +170,8 @@ const termCellStyle: React.CSSProperties = {
 }
 
 const codeStyle: React.CSSProperties = {
-	background: '#f1f5f9',
-	border: '1px solid #e2e8f0',
+	background: 'var(--table-head)',
+	border: '1px solid var(--border)',
 	borderRadius: '4px',
 	padding: '2px 5px',
 }
@@ -186,7 +186,7 @@ const definitionStyle: React.CSSProperties = {
 	display: 'grid',
 	gap: '6px',
 	padding: '12px',
-	border: '1px solid #e5e7eb',
+	border: '1px solid var(--border-soft)',
 	borderRadius: '6px',
-	background: '#fbfcfe',
+	background: 'var(--surface-muted)',
 }
